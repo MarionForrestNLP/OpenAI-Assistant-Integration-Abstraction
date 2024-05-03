@@ -1,4 +1,4 @@
-#Imports
+# Imports
 import json
 import Local_Keys as LK
 import Assistant_Functions as AF
@@ -10,7 +10,7 @@ ASSISTANT_TEMPERATURE = 1.4
 ASSISTANT_MODEL = "gpt-3.5-turbo-0125"
 ASSISTANT_NAME = "NLPete"
 MESSAGE_HISTORY_LENGTH = 25
-MAX_PROMPT_TOKENS = 1000
+MAX_PROMPT_TOKENS = 5000
 
 # \/ \/ Functions \/ \/ 
 
@@ -124,7 +124,7 @@ Returns
     vectorStore (dict): A dictionary containing the assistant's resources"""
 def Create_Vector_Store(client:OpenAI):
     # Create and array of file IDs
-    filePaths = [r"./NLP_Logix_Company_Fact_Sheet.docx"]
+    filePaths = json.load(open('Vector_Store_Files.json', 'r'))[filePaths]
     fileIDs = []
     for filePath in filePaths:
         # Upload info files
@@ -163,7 +163,7 @@ Parameters
 Returns
     assistant (dict): A dictionary containing the assistant's resources
 """
-def Assistant_Initializer(client:OpenAI) -> dict:
+def Assistant_Initializer(client:OpenAI, instructionPrompt:str, toolSet:list, toolResources:dict) -> dict:
     # Initialize Assistant
     assistant = None
 
@@ -177,9 +177,9 @@ def Assistant_Initializer(client:OpenAI) -> dict:
         assistant = client.beta.assistants.update(
             assistant_id=LK.Get_Assistant_ID(),
             temperature=ASSISTANT_TEMPERATURE,
-            instructions=Get_Assistant_Context(),
-            tools=Get_Assistant_Tools(),
-            tool_resources=Get_Tool_Resources(client)
+            instructions=instructionPrompt,
+            tools=toolSet,
+            tool_resources=toolResources
         )
     
     except:
@@ -187,10 +187,10 @@ def Assistant_Initializer(client:OpenAI) -> dict:
         assistant = client.beta.assistants.create(
             name=ASSISTANT_NAME,
             model=ASSISTANT_MODEL,
-            temperature=0.3,
-            instructions=Get_Assistant_Context(),
-            tools=Get_Assistant_Tools(),
-            tool_resources=Get_Tool_Resources(client)
+            temperature=ASSISTANT_TEMPERATURE,
+            instructions=instructionPrompt,
+            tools=toolSet,
+            tool_resources=toolResources
         )
 
         # Save Assistant
@@ -267,12 +267,17 @@ class Assistant:
     ast_Thread = None
 
     # Constructor
-    def __init__(self, client:OpenAI) -> None:
+    def __init__(self, client:OpenAI, instructionPrompt:str, toolSet:list, toolResources:dict) -> None:
         # Set client
         self.ast_Client = client
 
         # Initialize assistant
-        self.ast_Intance = Assistant_Initializer(client)
+        self.ast_Intance = Assistant_Initializer(
+            client=client,
+            instructionPrompt=instructionPrompt,
+            toolSet=toolSet,
+            toolResources=toolResources
+        )
 
         # Initialize thread
         self.ast_Thread = client.beta.threads.create()

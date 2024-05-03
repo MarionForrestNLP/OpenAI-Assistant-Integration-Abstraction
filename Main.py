@@ -45,7 +45,7 @@ def Chat(assistant:AH.Assistant) -> None:
     while True:
         # get user input
         userInput = str(input("User: "))
-        if len(userInput.split(" ")) > 100 or len(userInput > 1000):
+        if len(userInput.split(" ")) > 100 or len(userInput) > 1000:
             print("Your message is too long. Please try to shorten it.")
             time.sleep(3)
         else:
@@ -81,7 +81,12 @@ def Main() -> None:
     client = OpenAI(api_key=LK.Get_API_Key())
 
     # Get assistant
-    assistant = AH.Assistant(client)
+    assistant = AH.Assistant(
+        client=client,
+        instructionPrompt=AH.Get_Assistant_Context(),
+        toolSet=AH.Get_Assistant_Tools(),
+        toolResources=AH.Get_Tool_Resources(client)
+    )
 
     # Start chat
     Chat(assistant)
