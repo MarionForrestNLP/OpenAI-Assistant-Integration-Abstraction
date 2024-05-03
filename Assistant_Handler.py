@@ -254,17 +254,22 @@ def Handle_Function_Calls(client, runInstance, functionObjectList) -> None:
 Assistant Object
 
 This class is used to interact with the OpenAI Assistant.
+
+Properties
+    ast_Client (OpenAI): The OpenAI client instance
+    ast_Intance (dict): The OpenAI Assistant instance
+    ast_Thread (dict): The Assistant Thread instance
 """
 class Assistant:
     # Properties
-    ast_client = None
+    ast_Client = None
     ast_Intance = None
     ast_Thread = None
 
     # Constructor
     def __init__(self, client:OpenAI) -> None:
         # Set client
-        self.ast_client = client
+        self.ast_Client = client
 
         # Initialize assistant
         self.ast_Intance = Assistant_Initializer(client)
@@ -284,12 +289,12 @@ class Assistant:
     Returns
         message (dict): The new message object
     """
-    def Send_Message(self, userInput:str) -> dict:
+    def Send_Message(self, user_Input:str) -> dict:
         # Add user input to thread
-        message = self.ast_client.beta.threads.messages.create(
+        message = self.ast_Client.beta.threads.messages.create(
             thread_id=self.ast_Thread.id,
             role="user",
-            content=userInput,
+            content=user_Input,
         )
 
         # Return message object
@@ -308,7 +313,7 @@ class Assistant:
     """
     def Get_Message_History(self) -> list:
         # get the current run instance of the thread
-        local_Run = self.ast_client.beta.threads.runs.create(
+        local_Run = self.ast_Client.beta.threads.runs.create(
             thread_id=self.ast_Thread.id,
             assistant_id=self.ast_Intance.id,
             max_prompt_tokens=MAX_PROMPT_TOKENS
@@ -316,7 +321,7 @@ class Assistant:
 
         # check if run is complete
         while local_Run.status != "completed":
-            local_Run = self.ast_client.beta.threads.runs.retrieve(
+            local_Run = self.ast_Client.beta.threads.runs.retrieve(
                 thread_id=self.ast_Thread.id,
                 run_id=local_Run.id
             )
@@ -326,10 +331,10 @@ class Assistant:
                 pending_Functions = local_Run.required_action.submit_tool_outputs.tool_calls
 
                 # handle function calls
-                Handle_Function_Calls(self.ast_client, local_Run, pending_Functions)
+                Handle_Function_Calls(self.ast_Client, local_Run, pending_Functions)
 
         # get history
-        message_History = self.ast_client.beta.threads.messages.list(
+        message_History = self.ast_Client.beta.threads.messages.list(
             thread_id=self.ast_Thread.id,
             limit=MESSAGE_HISTORY_LENGTH,
             order="asc"
