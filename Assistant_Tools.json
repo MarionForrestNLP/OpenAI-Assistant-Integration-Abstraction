@@ -1,0 +1,26 @@
+[
+    {
+        "type": "file_search"
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "Record_Client_Email",
+            "description": "Records the client's email so that they may be contacted at a later time. Call this function when the client has given you their email and company name. If a company name is not given, pass 'Unknown' as the second argument. Returns True if successful, False if not.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "clientEmail": {
+                        "type": "string",
+                        "description": "The client's email"
+                    },
+                    "clientCompanyName": {
+                        "type": "string",
+                        "description": "The client's company name"
+                    }
+                },
+                "required": ["textBody"]
+            }
+        }
+    }
+]
