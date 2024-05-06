@@ -4,7 +4,7 @@
 ## Goal
 This project was initialized by an intern with the goal to replace the text fields on the contact page on the company website with an AI powered chatbot.
 
-## Assistant Object
+## Assistant Class
 There is an **Assistant** class declared within the **Assistant_Handler.py** file. This assistant object is used to facilitate all interactions with the chat bot within one place. 
 ### Properties
 - **Client**: This is the OpenAI connection intance used to access the assistant and other APIs.
