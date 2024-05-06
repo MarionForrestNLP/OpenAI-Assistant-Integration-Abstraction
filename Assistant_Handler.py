@@ -11,6 +11,8 @@ ASSISTANT_MODEL = "gpt-3.5-turbo-0125"
 ASSISTANT_NAME = "NLPete"
 MESSAGE_HISTORY_LENGTH = 25
 MAX_PROMPT_TOKENS = 5000
+VECTOR_STORAGE_TIME = 1 # in  terms of days
+VECTOR_STORE_LIST_LIMIT = 50
 
 # \/ \/ Functions \/ \/ 
 
@@ -87,31 +89,33 @@ Returns
     vectorStore (dict): A dictionary containing the file search resource
 """
 def Get_File_Search_Resources(client:OpenAI) -> dict:
-    # Initialize vector store
-    vectorStore = None
-    
-    try:
-        # Try to retrieve a prexisting vector store
-        vectorStore = client.beta.vector_stores.retrieve(
-            vector_store_id=LK.Get_Vector_Store_ID()
-        )
+    # Initialize return object
+    returnVectorStore = {}
 
-        # Check expiration
-        if vectorStore.status == "expired":
-            vectorStore = Create_Vector_Store(client)
-    except:
+    # Get a list of vertor stores
+    vectorStoreList = client.beta.vector_stores.list().data
+
+    # Iterate through vector stores
+    for vectorStore in vectorStoreList:
+        if vectorStore.status != "expired":
+            returnVectorStore = vectorStore
+            break
+        else:
+            continue
+    # Loop end
+
+    if returnVectorStore == {}:
         # Create new vector store
-        vectorStore = Create_Vector_Store(client)
-    finally:
-        # Create file search resources
-        returnDict = {
-            "file_search": {
-                "vector_store_ids": [vectorStore.id]
-            }
-        }
+        returnVectorStore = Create_Vector_Store(client)
 
-        # return
-        return returnDict
+    returnDict = {
+        "file_search": {
+            "vector_store_ids": [returnVectorStore.id]
+        }
+    }
+
+    # return
+    return returnDict
 # Function End
 
 """
@@ -124,7 +128,7 @@ Returns
     vectorStore (dict): A dictionary containing the assistant's resources"""
 def Create_Vector_Store(client:OpenAI):
     # Create and array of file IDs
-    filePaths = json.load(open('Vector_Store_Files.json', 'r'))[filePaths]
+    filePaths = json.load(open('Vector_Store_Files.json', 'r'))["filePaths"]
     fileIDs = []
     for filePath in filePaths:
         # Upload info files
@@ -142,7 +146,7 @@ def Create_Vector_Store(client:OpenAI):
         file_ids=fileIDs,
         expires_after={
             "anchor": "last_active_at",
-            "days": 1
+            "days": VECTOR_STORAGE_TIME
         }
     )
 
@@ -151,54 +155,6 @@ def Create_Vector_Store(client:OpenAI):
 
     # return vector store
     return vectorStore
-# Function End
-
-"""
-Initializes the assistant. Try's the retrieve the assistant. If it doesn't exist,
-it creates a new one and saves the ID to a json file.
-
-Parameters
-    client (OpenAI): The OpenAI client
-
-Returns
-    assistant (dict): A dictionary containing the assistant's resources
-"""
-def Assistant_Initializer(client:OpenAI, instructionPrompt:str, toolSet:list, toolResources:dict) -> dict:
-    # Initialize Assistant
-    assistant = None
-
-    try:
-        # Retrieve Assistant
-        assistant = client.beta.assistants.retrieve(
-            assistant_id=LK.Get_Assistant_ID()
-        )
-
-        # Update Assistant
-        assistant = client.beta.assistants.update(
-            assistant_id=LK.Get_Assistant_ID(),
-            temperature=ASSISTANT_TEMPERATURE,
-            instructions=instructionPrompt,
-            tools=toolSet,
-            tool_resources=toolResources
-        )
-    
-    except:
-        # Create Assistant
-        assistant = client.beta.assistants.create(
-            name=ASSISTANT_NAME,
-            model=ASSISTANT_MODEL,
-            temperature=ASSISTANT_TEMPERATURE,
-            instructions=instructionPrompt,
-            tools=toolSet,
-            tool_resources=toolResources
-        )
-
-        # Save Assistant
-        LK.Set_Assistant_ID(assistant.id)
-
-    finally:
-        # return assistant
-        return assistant
 # Function End
 
 """
@@ -246,37 +202,64 @@ def Handle_Function_Calls(client, runInstance, functionObjectList) -> None:
             ]
         )
     # Loop End
-
     return None
 # Function End
 
 """
 Assistant Object
 
-This class is used to interact with the OpenAI Assistant.
+This class is used to interact with the OpenAI Assistant. This class has methods for sending and
+receiving messages.
 
 Properties
     ast_Client (OpenAI): The OpenAI client instance
     ast_Intance (dict): The OpenAI Assistant instance
     ast_Thread (dict): The Assistant Thread instance
+    ast_Tool_Set (list): A list of tool dictionaries
+    ast_Tool_Resources (dict): A dictionary of tool resources
+
+Methods
+    Update_Tool_Set(tool_Set:list, tool_Resources:dict)
+    Send_Message(message_content:str, message_attachments:list=[])
+    Get_Message_History()
 """
 class Assistant:
     # Properties
     ast_Client = None
+    ast_Model = None
+    ast_Name = None
+    ast_Instructions = None
+    ast_Tool_Set = []
+    ast_Tool_Resources = {}
+    ast_Model_Parameters = {
+        "temperature": 1.0,
+        "top_p": 1.0
+    }
     ast_Intance = None
     ast_Thread = None
 
     # Constructor
-    def __init__(self, client:OpenAI, instructionPrompt:str, toolSet:list, toolResources:dict) -> None:
-        # Set client
+    def __init__(self, client:OpenAI, assistant_name:str, instruction_prompt:str,
+                 tool_Set:list, tool_Resources:dict, model:str=ASSISTANT_MODEL,
+                 temperature:float=ASSISTANT_TEMPERATURE,) -> None:
+        
+        # Set properties
         self.ast_Client = client
+        self.ast_Model = model
+        self.ast_Name = assistant_name
+        self.ast_Instructions = instruction_prompt
+        self.ast_Tool_Set = tool_Set
+        self.ast_Tool_Resources = tool_Resources
+        self.ast_Model_Parameters["temperature"] = temperature
 
-        # Initialize assistant
-        self.ast_Intance = Assistant_Initializer(
-            client=client,
-            instructionPrompt=instructionPrompt,
-            toolSet=toolSet,
-            toolResources=toolResources
+        # Create assistant
+        self.ast_Intance = self.ast_Client.beta.assistants.create(
+            model=self.ast_Model,
+            name=self.ast_Name,
+            instructions=self.ast_Instructions,
+            tools=self.ast_Tool_Set,
+            tool_resources=self.ast_Tool_Resources,
+            temperature=self.ast_Model_Parameters["temperature"],
         )
 
         # Initialize thread
@@ -284,26 +267,141 @@ class Assistant:
     # Constructor End
 
     # \/ \/ Methods \/ \/
+
     """
-    Adds a new message to the assistant's thread
-    and returns the new message object.
+    Deletes the assistant. Call this method once you are done using the assistant.
 
     Parameters
-        userInput (str): The user's input
+        None
+
+    Returns
+        deletion_object.status (bool): The status of the operation
+    """
+    def Delete_Assistant(self) -> bool:
+        # get assistant id
+        assistant_id = self.ast_Intance.id
+
+        # Delete assistant
+        deletion_object = self.ast_Client.beta.assistants.delete(
+            assistant_id=assistant_id
+        )
+
+        # update instance
+        self.ast_Intance = None
+
+        # return status
+        return deletion_object.deleted
+    # Function End
+
+    """
+    Adds a file to the assistant's vector store.
+
+    Parameters
+        file_path (str): The path to the file
+
+    Returns
+        vector_file.status (str): The status of the operation
+    """
+    def Add_File_To_Vector_Store(self, file_path:str) -> str:
+        # get vector store
+        vector_store_id = self.ast_Tool_Resources["file_search"]["vector_store_ids"][0]
+
+        # create file object
+        file_object = self.ast_Client.files.create(
+            file=open(file_path, "rb"),
+            purpose="assistants"
+        )
+
+        # add file to vector store
+        vector_file = self.ast_Client.beta.vector_stores.files.create(
+            vector_store_id=vector_store_id,
+            file_id=file_object.id
+        )
+
+        # return status
+        return vector_file.status
+    # Function End
+
+    """
+    Updates the assistant's tools and resources.
+
+    Parameters
+        tool_Set (list): A list of tool dictionaries
+        tool_Resources (dict): A dictionary of tool resources
+
+    Returns
+        (bool): The completions status of the operation
+    """
+    def Update_Tool_Set(self, tool_Set:list[dict], tool_Resources:dict) -> bool:
+        try:
+            # Update tool set
+            updated_assistant = self.ast_Client.beta.assistants.update(
+                assistant_id=self.ast_Intance.id,
+                tools=tool_Set,
+                tool_resources=tool_Resources
+            )
+
+            # update intance
+            self.ast_Intance = updated_assistant
+            self.ast_Tool_Set = tool_Set
+            self.ast_Tool_Resources = tool_Resources
+
+            # return status
+            return True
+        except:
+            # return status
+            return False
+    # Function End
+
+    """
+    Adds a new message to the assistant's thread
+    and returns the new message object. Also adds
+    attachments to the message if any are passed.
+
+    Parameters
+        message_content (str): The text content of the message
+        message_attachments (list): A list of attachment dictionaries.
+            Defaults to an empty list.
 
     Returns
         message (dict): The new message object
     """
-    def Send_Message(self, user_Input:str) -> dict:
-        # Add user input to thread
-        message = self.ast_Client.beta.threads.messages.create(
-            thread_id=self.ast_Thread.id,
-            role="user",
-            content=user_Input,
-        )
+    def Send_Message(self, message_content:str, message_attachments:list[dict] = [None]) -> dict:
+        # Variable initialization
+        message = None
+
+        # Has attachments
+        try:
+            # Format attachments
+            formatted_message_attachments = [None]
+            if message_attachments[0] is not None:
+                for attachment in message_attachments:
+                    formatted_message_attachments.append({
+                        "file_id": attachment.id,
+                        "tools": [{"type": "file_search"}]
+                    })
+                # Loop end
+            
+            # Create message
+            message = self.ast_Client.beta.threads.messages.create(
+                thread_id=self.ast_Thread.id,
+                role="user",
+                content=message_content,
+                attachments=formatted_message_attachments
+            )
+
+        # Does not have attachments
+        except:
+            # Create message
+            message = self.ast_Client.beta.threads.messages.create(
+                thread_id=self.ast_Thread.id,
+                role="user",
+                content=message_content
+            )
 
         # Return message object
-        return message
+        finally:
+            return message
     # Function End
 
     """
@@ -348,7 +446,4 @@ class Assistant:
         # return history
         return message_History
     # Function End
-
-    # \/ \/ Getters and Setters \/ \/
-    def Get_Instance(self) -> dict:
-        return self.ast_Intance
+# Class End
