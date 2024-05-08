@@ -13,8 +13,8 @@ This class is used to facilitate all interactions with the OpenAI [assistant](ht
 - **Instructions**: The prompt used to set up the assistant's initial context and behavior.
 - **Tool Set**: The list of tools used by the assistant. file search, code interpreter, and function calling.
 - **Tool Resources**: The dictionary containing the id's of vector stores used by different tools.
-- **User Defined Functions**: The dictionary containing information about user defined functions. How this dictionary is used is explained further down.
-- **Model Parameters**: The dictionary containing the assistant's model response parameters. Currently includes temperature and top P.
+- **User Defined Functions**: The dictionary containing information about user defined functions. How this dictionary is used is explained further down. Defaults to an empty dictionary.
+- **Model Parameters**: The dictionary containing the assistant's model response parameters. Currently includes temperature and top P. Defaults to a temperature of 1 and a top_p of 1.
 - **Intance**: This is the instance of the Assistant that our chat bot is tied to and actively using.
 - **Thread**: This is the object in which user and assistant interactions are stored.
 ### Methods
