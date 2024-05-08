@@ -1,5 +1,6 @@
 # Imports
-import Assistant_Handler as AH
+import Assistant as AST
+import Example_Tools
 import Local_Keys as LK
 import time
 
@@ -18,7 +19,7 @@ Parameters
 Returns
     formattedMessage (str): The formatted message
 """
-def FormatMessage(messageObject, debugMode:bool=False) -> str:
+def FormatMessage(messageObject, assistantName:str="Assistant",debugMode:bool=False) -> str:
     if debugMode: # Debug Mode
         textValue = messageObject.content[0]
     else: # Normal Mode
@@ -28,7 +29,7 @@ def FormatMessage(messageObject, debugMode:bool=False) -> str:
     textRole = messageObject.role
 
     if textRole == "assistant":
-        return f"NLPete: {textValue}\n"
+        return f"{assistantName}: {textValue}\n"
     else:
         return f"User: {textValue}\n"
 
@@ -41,13 +42,16 @@ Parameters
 Returns
     None
 """
-def Chat(assistant:AH.Assistant) -> None:
+def Chat(assistant:AST.Assistant) -> None:
     while True:
         # get user input
         userInput = str(input("User: "))
         if len(userInput.split(" ")) > 100 or len(userInput) > 1000:
             print("Your message is too long. Please try to shorten it.")
             time.sleep(3)
+        elif userInput.lower() == "exit":
+            assistant.Delete_Assistant()
+            break
         else:
             assistant.Send_Message(userInput)
 
@@ -63,6 +67,7 @@ def Chat(assistant:AH.Assistant) -> None:
             # Format message
             formattedMessage = FormatMessage(
                 messageObject=message,
+                assistantName=assistant.ast_Name,
                 debugMode=False
             )
 
@@ -81,29 +86,26 @@ def Main() -> None:
     client = OpenAI(api_key=LK.Get_API_Key())
 
     # Function dictionary
-    functionDict= {
-        "Record_Client_Email": [
+    functionDict = {
+        "Record_Client_Email": (
             "import Assistant_Functions",
             "Assistant_Functions.Record_Client_Email",
             2,
-            "False"]
+            "False"
+        )
     }
 
     # Create assistant
-    assistant = AH.Assistant(
+    assistant = AST.Assistant(
         client=client,
         assistant_name="LNPete",
-        instruction_prompt=AH.Get_Assistant_Context(),
-        tool_Set=AH.Get_Assistant_Tools(),
-        tool_Resources=AH.Get_Tool_Resources(client),
-        function_Dictionary=functionDict
+        instruction_prompt=Example_Tools.Get_Assistant_Context(),
+        tool_Set=Example_Tools.Get_Assistant_Tools(),
+        tool_Resources=AST.Get_Tool_Resources(client),
+        function_Dictionary=functionDict,
+        model="gpt-3.5-turbo-0125",
+        model_parameters={"temperature": 1.4, "top_p": 1.0}
     )
-
-    print(assistant.ast_Tool_Set)
-    print(assistant.ast_Tool_Resources)
-    print(assistant.ast_Intance)
-
-    #assistant.Delete_Assistant()
 
     # Start chat
     Chat(assistant)
