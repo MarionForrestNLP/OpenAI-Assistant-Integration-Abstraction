@@ -1,7 +1,6 @@
 # Imports
 import json
 import Local_Keys as LK
-import Assistant_Functions as AF
 
 from openai import OpenAI
 
@@ -158,54 +157,6 @@ def Create_Vector_Store(client:OpenAI):
 # Function End
 
 """
-This function attempts to identify and handle function calls.
-If a function is called it will execute the function and pass it's
-return value to the run instance.
-
-Parameters
-    client (OpenAI): The OpenAI client
-    runInstance (dict): The run instance
-    functionObjectList (list): A list of function objects
-
-Returns
-    None
-"""
-def Handle_Function_Calls(client, runInstance, functionObjectList) -> None:
-    # Iterate through each function call
-    for functionObject in functionObjectList:
-        functionObjectDict = dict(functionObject)
-
-        # Get function details
-        functionDetails = dict(functionObjectDict['function'])
-
-        # Get arguments
-        argumentSet = json.loads(functionDetails['arguments'])
-        argumentValues = list(argumentSet.values())
-
-        # Call functions
-        returnObject = None
-        if functionDetails["name"] == "Record_Client_Email":
-            try:
-                returnObject = AF.Record_Client_Email(argumentValues[0], argumentValues[1])
-            except:
-                returnObject = "False"
-
-        # Update run instance
-        updatedRun = client.beta.threads.runs.submit_tool_outputs(
-            thread_id=runInstance.thread_id,
-            run_id=runInstance.id,
-            tool_outputs=[
-                {
-                    "tool_call_id": functionObjectDict["id"],
-                    "output": returnObject
-                }
-            ]
-        )
-    # Loop End
-    return None
-# Function End
-
-"""
 Assistant Object
 
 This class is used to interact with the OpenAI Assistant. This class has methods for sending and
@@ -219,7 +170,9 @@ Properties
     ast_Tool_Resources (dict): A dictionary of tool resources
 
 Methods
+    Add_File_To_Vector_Store(file_path:str)
     Update_Tool_Set(tool_Set:list, tool_Resources:dict)
+    Delete_Assistant()
     Send_Message(message_content:str, message_attachments:list=[])
     Get_Message_History()
 """
@@ -231,6 +184,7 @@ class Assistant:
     ast_Instructions = None
     ast_Tool_Set = []
     ast_Tool_Resources = {}
+    ast_User_Defined_Functions = {}
     ast_Model_Parameters = {
         "temperature": 1.0,
         "top_p": 1.0
@@ -240,8 +194,8 @@ class Assistant:
 
     # Constructor
     def __init__(self, client:OpenAI, assistant_name:str, instruction_prompt:str,
-                 tool_Set:list, tool_Resources:dict, model:str=ASSISTANT_MODEL,
-                 temperature:float=ASSISTANT_TEMPERATURE,) -> None:
+                 tool_Set:list, tool_Resources:dict, function_Dictionary:dict={},
+                 model:str=ASSISTANT_MODEL, temperature:float=ASSISTANT_TEMPERATURE,) -> None:
         
         # Set properties
         self.ast_Client = client
@@ -250,6 +204,7 @@ class Assistant:
         self.ast_Instructions = instruction_prompt
         self.ast_Tool_Set = tool_Set
         self.ast_Tool_Resources = tool_Resources
+        self.ast_User_Defined_Functions = function_Dictionary
         self.ast_Model_Parameters["temperature"] = temperature
 
         # Create assistant
@@ -434,7 +389,7 @@ class Assistant:
                 pending_Functions = local_Run.required_action.submit_tool_outputs.tool_calls
 
                 # handle function calls
-                Handle_Function_Calls(self.ast_Client, local_Run, pending_Functions)
+                self.__Handle_Function_Calls(self.ast_Client, local_Run, pending_Functions)
 
         # get history
         message_History = self.ast_Client.beta.threads.messages.list(
@@ -446,4 +401,55 @@ class Assistant:
         # return history
         return message_History
     # Function End
+
+    def __Handle_Function_Calls(self, client, runInstance, functionObjectList) -> None:
+        # Iterate through each function call
+        for functionObject in functionObjectList:
+            functionObjectDict = dict(functionObject)
+
+            # Get function details
+            functionDetails = dict(functionObjectDict['function'])
+
+            # Get arguments
+            argumentSet = json.loads(functionDetails['arguments'])
+            args = list(argumentSet.values())
+
+            # Call functions
+            for functionName in self.ast_User_Defined_Functions.keys():
+                if functionName == functionDetails["name"]:
+                    try:
+                        # Import libray
+                        exec(self.ast_User_Defined_Functions[functionName][0])
+
+                        # Build funciton call
+                        function_call_string = self.ast_User_Defined_Functions[functionName][1] + "("
+                        for i in range(self.ast_User_Defined_Functions[functionName][2]):
+                            if i != 0:
+                                function_call_string = function_call_string + ", "
+                            function_call_string = function_call_string + "\'" + args[i] + "\'"
+                        function_call_string = function_call_string + ")"
+
+                        # Execute function
+                        returnObject = eval(function_call_string)
+                    except Exception as e:
+                        print(e)
+                        # Return fail case
+                        returnObject = self.ast_User_Defined_Functions[functionName][3]
+            # Loop End
+
+            # Update run instance
+            updatedRun = client.beta.threads.runs.submit_tool_outputs(
+                thread_id=runInstance.thread_id,
+                run_id=runInstance.id,
+                tool_outputs=[
+                    {
+                        "tool_call_id": functionObjectDict["id"],
+                        "output": returnObject
+                    }
+                ]
+            )
+        # Loop End
+        return None
+    # Function End
+
 # Class End
