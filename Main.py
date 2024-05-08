@@ -80,23 +80,33 @@ def Main() -> None:
     # Get client
     client = OpenAI(api_key=LK.Get_API_Key())
 
+    # Function dictionary
+    functionDict= {
+        "Record_Client_Email": [
+            "import Assistant_Functions",
+            "Assistant_Functions.Record_Client_Email",
+            2,
+            "False"]
+    }
+
     # Create assistant
     assistant = AH.Assistant(
         client=client,
         assistant_name="LNPete",
         instruction_prompt=AH.Get_Assistant_Context(),
         tool_Set=AH.Get_Assistant_Tools(),
-        tool_Resources=AH.Get_Tool_Resources(client)
+        tool_Resources=AH.Get_Tool_Resources(client),
+        function_Dictionary=functionDict
     )
 
     print(assistant.ast_Tool_Set)
     print(assistant.ast_Tool_Resources)
     print(assistant.ast_Intance)
 
-    assistant.Delete_Assistant()
+    #assistant.Delete_Assistant()
 
     # Start chat
-    #Chat(assistant)
+    Chat(assistant)
 
 if __name__ == "__main__":
     Main()
