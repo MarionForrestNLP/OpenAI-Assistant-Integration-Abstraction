@@ -1,7 +1,5 @@
 # Imports
 import json
-import Local_Keys as LK
-
 from openai import OpenAI
 
 # Constants

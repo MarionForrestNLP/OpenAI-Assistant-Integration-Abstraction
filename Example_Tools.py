@@ -1,5 +1,7 @@
 # Imports
+from datetime import datetime, timedelta
 import json
+import time
 from openai import OpenAI
 
 """
@@ -139,3 +141,22 @@ def Create_Vector_Store(client:OpenAI):
     # return vector store
     return vectorStore
 # Function End
+
+def Delete_Old_Vectors(client:OpenAI):
+    files = client.files.list()
+
+    for file in files.data:
+        if file.created_at < (time.time() - (2 * 86400)):
+            client.files.delete(file.id)
+        else:
+            continue
+
+    vectorStores = client.beta.vector_stores.list()
+
+    for vectorStore in vectorStores.data:
+        if vectorStore.created_at < (time.time() - (2 * 86400)):
+            client.beta.vector_stores.delete(vectorStore.id)
+        elif vectorStore.status == "expired":
+            client.beta.vector_stores.delete(vectorStore.id)
+        else:
+            continue

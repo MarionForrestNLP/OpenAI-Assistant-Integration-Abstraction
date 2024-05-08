@@ -85,6 +85,9 @@ def Main() -> None:
     # Get client
     client = OpenAI(api_key=LK.Get_API_Key())
 
+    # Clean up the file store
+    Example_Tools.Delete_Old_Vectors(client)
+
     # Function dictionary
     functionDict = {
         "Record_Client_Email": (
@@ -101,7 +104,7 @@ def Main() -> None:
         assistant_name="LNPete",
         instruction_prompt=Example_Tools.Get_Assistant_Context(),
         tool_Set=Example_Tools.Get_Assistant_Tools(),
-        tool_Resources=AST.Get_Tool_Resources(client),
+        tool_Resources=Example_Tools.Get_Tool_Resources(client),
         function_Dictionary=functionDict,
         model="gpt-3.5-turbo-0125",
         model_parameters={"temperature": 1.4, "top_p": 1.0}
