@@ -316,7 +316,7 @@ class Assistant:
     # Function End
 
     """
-    Returns a string containing some key characteristics of the assistant.
+    prints a string containing some key characteristics of the assistant.
 
     Parameters
         None

@@ -24,10 +24,16 @@ This class is used to facilitate all interactions with the OpenAI [assistant](ht
 ### Methods
 
 - **Add File to Vector Store**: This method adds a file to the assistant's internal vector store. It takes a file path as input, opens the file, creates a [file object](https://platform.openai.com/docs/api-reference/vector-stores-files/file-object) using the OpenAI client, and then adds the file to the assistant's internal vector store. The method returns the status of the vector file.
+
 - **Update Tool Set**: This method updates the tool set and tool resources used by the assistant. It takes a list of tool dictionaries and a dictionary of tool resources as input. It updates the assistant instance, tool set, and tool resources properties. The method returns a boolean indicating whether the update was successful or not.
+
 - **Delete Assistant**: This method deletes the assistant instance. It gets the assistant ID, [deletes the assistant](https://platform.openai.com/docs/api-reference/assistants/deleteAssistant) using the OpenAI client, and then updates the assistant instance property to None. The method returns a boolean indicating whether the deletion was successful or not.
+
 - **Send Message**: This method creates a [message object](https://platform.openai.com/docs/api-reference/messages/object) and inserts it into the assistant's thread. The message object is then returned. [Attachments](https://platform.openai.com/docs/api-reference/messages/createMessage#messages-createmessage-attachments) can be added to a message and will inserted into the thread along side the message's content.
-- **Get_Message_History**: This method returns the entire chat log up to a maximum of 25 messages. This method also checks for when the assistant is attempting to call [developer defined functions](https://platform.openai.com/docs/assistants/tools/function-calling/function-calling-beta) and calls the `Handle_Function_Calls` function defined earlier within **Assistant_Hander.py**.
+
+- **Get Message History**: This method returns the entire chat log up to a maximum of 25 messages. This method also checks for when the assistant is attempting to call [developer defined functions](https://platform.openai.com/docs/assistants/tools/function-calling/function-calling-beta) and calls the `Handle_Function_Calls` function defined earlier within **Assistant_Hander.py**.
+
+- **Print Characteristics**: Prints a string containing some key characteristics of the assistant. These characteristics are the assistant's id, name, creation time, description, instructions, metadata, tools, tool resources, repsonse format, model, temperature, and top p (not in that order).
 
 ## User Defined Functions
 
