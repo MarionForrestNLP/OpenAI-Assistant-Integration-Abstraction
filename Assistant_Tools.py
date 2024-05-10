@@ -77,27 +77,26 @@ Returns
 """
 def Get_File_Search_Resources(client:OpenAI) -> dict:
     # Initialize return object
-    returnVectorStore = {}
+    validVectorStores = []
 
     # Get a list of vertor stores
     vectorStoreList = client.beta.vector_stores.list().data
 
     # Iterate through vector stores
     for vectorStore in vectorStoreList:
-        if vectorStore.status != "expired":
-            returnVectorStore = vectorStore
-            break
+        if vectorStore.status != "expired" and vectorStore.name == "Company_Fact_Sheets":
+            validVectorStores.append(vectorStore.id)
         else:
             continue
     # Loop end
 
-    if returnVectorStore == {}:
+    if validVectorStores == []:
         # Create new vector store
-        returnVectorStore = Create_Vector_Store(client)
+        validVectorStores.append(Create_Vector_Store(client))
 
     returnDict = {
         "file_search": {
-            "vector_store_ids": [returnVectorStore.id]
+            "vector_store_ids": validVectorStores
         }
     }
 
@@ -112,8 +111,8 @@ Parameters
     client (OpenAI): The OpenAI client
 
 Returns
-    vectorStore (dict): A dictionary containing the assistant's resources"""
-def Create_Vector_Store(client:OpenAI):
+    vectorStore.id (str): The id of the new vector store"""
+def Create_Vector_Store(client:OpenAI) -> str:
     # Create and array of file IDs
     filePaths = [r"./NLP_Logix_Company_Fact_Sheet.docx"]
     fileIDs = []
@@ -138,7 +137,7 @@ def Create_Vector_Store(client:OpenAI):
     )
 
     # return vector store
-    return vectorStore
+    return vectorStore.id
 # Function End
 
 def Delete_Old_Vectors(client:OpenAI):
