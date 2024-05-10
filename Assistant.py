@@ -222,7 +222,7 @@ class Assistant:
     Returns
         history (list): A list of message objects
     """
-    def Get_Message_History(self) -> list:
+    def Get_Message_History(self, debugMode:int=0) -> list:
         # get the current run instance of the thread
         local_Run = self.ast_Client.beta.threads.runs.create(
             thread_id=self.ast_Thread.id,
@@ -251,8 +251,18 @@ class Assistant:
             order="asc"
         ).data
 
-        # return history
-        return message_History
+        if debugMode == 1:
+            # return unformatted history
+            return message_History
+        else:
+            # format history
+            message_History_F = []
+            for message in message_History:
+                if message.role == "assistant":
+                    message_History_F.append(f"{self.ast_Name}: {message.content[0].text.value}")
+                else:
+                    message_History_F.append(f"User: {message.content[0].text.value}")
+            return message_History_F
     # Function End
 
     def __Handle_Function_Calls(self, client, runInstance, functionObjectList) -> None:
@@ -303,6 +313,30 @@ class Assistant:
             )
         # Loop End
         return None
+    # Function End
+
+    """
+    Returns a string containing some key characteristics of the assistant.
+
+    Parameters
+        None
+
+    Returns
+        characteristics_string (str): A string containing the assistant's characteristics
+    """
+    def Print_Characteristics(self) -> None:
+        # Variable initialization
+        characteristics_string = ""
+
+        # get assistant dict
+        assistant_dict = dict(json.loads(self.ast_Intance.to_json()))
+
+        # build string
+        for key in assistant_dict.keys():
+            characteristics_string += f"\t{key}: {assistant_dict[key]}\n"
+
+        # print string
+        print(characteristics_string)
     # Function End
 
 # Class End

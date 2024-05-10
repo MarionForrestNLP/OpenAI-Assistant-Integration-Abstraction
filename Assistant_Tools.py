@@ -1,5 +1,4 @@
 # Imports
-from datetime import datetime, timedelta
 import json
 import time
 from openai import OpenAI
@@ -116,7 +115,7 @@ Returns
     vectorStore (dict): A dictionary containing the assistant's resources"""
 def Create_Vector_Store(client:OpenAI):
     # Create and array of file IDs
-    filePaths = json.load(open('Vector_Store_Files.json', 'r'))["filePaths"]
+    filePaths = [r"./NLP_Logix_Company_Fact_Sheet.docx"]
     fileIDs = []
     for filePath in filePaths:
         # Upload info files
@@ -160,3 +159,15 @@ def Delete_Old_Vectors(client:OpenAI):
             client.beta.vector_stores.delete(vectorStore.id)
         else:
             continue
+
+def Get_Function_Dictionary() -> dict:
+    functionDict = {
+        "Record_Client_Email": (
+            "import Assistant_Functions",
+            "Assistant_Functions.Record_Client_Email",
+            2,
+            "False"
+        )
+    }
+
+    return functionDict
