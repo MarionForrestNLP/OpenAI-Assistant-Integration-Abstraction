@@ -128,6 +128,6 @@ The constructor takes in the OpenAI client, the name of the vector store, and th
 - **Attach Existing File**: This method attaches an existing file to the vector store. It takes in the ID of the file you want to attach. It then creates a [vector store file object](https://platform.openai.com/docs/api-reference/vector-stores-files/file-object) using the OpenAI client to attach the file to the vector store. The method returns the status of the file attachment.
 
 - **Attach New File**: This method attaches a new file to the vector store. It takes in the path of the file you want to attach and the purpose of the file as an optional parameter (defaults to "assistant"). It then creates a [file object](https://platform.openai.com/docs/api-reference/files/object) using the OpenAI client then passes the file's id to the `Attach_Existing_File` method to attach the file to the vector store. The method returns the status of the file attachment.
-- Valid purposes are "assistants", "vision", "fine-tuning", and "batch".
+    - Valid purposes are "assistants", "vision", "fine-tuning", and "batch".
 
 ***More documentation coming soon...***
