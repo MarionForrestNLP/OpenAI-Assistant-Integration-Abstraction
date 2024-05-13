@@ -1,5 +1,31 @@
+# Imports
 from openai import OpenAI
 
+# Constants
+DEFAULT_LIFE_TIME = 1
+DEFAULT_VECTOR_STORE_NAME = "Vector_Storage"
+DEFAULT_FILE_PURPOSE = "assistant"
+FILE_PURPOSE_ENUM = ["assistant", "fine-tune", "vision", "batch"]
+
+"""
+Vector Storage Class
+
+This class is used to create, modify, and delete vector stores. It also provides methods to attach files to the vector store.
+
+Properties:
+    client (OpenAI): The OpenAI client object.
+    name (str): The name of the vector store.
+    days_until_expiration (int): The time in terms of 24 hour days that the vector store will be kept alive.
+    intance (dict): The vector store instance.
+
+Methods:
+    Retrieve_Vector_Store(vector_store_id:str) -> dict
+    Delete_Vector_Store(delete_attached:bool|None=None) -> bool
+    Modify_Vector_Store(new_name:str=None, new_life_time:int=None) -> dict
+    Get_Attributes() -> dict
+    Attach_Existing_File(file_id:str) -> str
+    Attach_New_File(file_path:str) -> str
+"""
 class Vector_Storage:
     # Properties
     client = None
@@ -13,10 +39,18 @@ class Vector_Storage:
 
     Parameters:
         openai_client (OpenAI): The OpenAI client object.
-        name (str): The name of the vector store. Defaults to "Vector_Storage".
-        life_time (int): The time in terms of 24 hour days that the vector store will be kept alive. Defaults to 1.
+        name (str): The name of the vector store. 
+            Defaults to "Vector_Storage".
+        life_time (int): The time in terms of 24 hour days that the vector store will be kept alive.
+            Defaults to 1.
     """
-    def __init__(self, openai_client:OpenAI, name:str="Vector_Storage", life_time:int=1):
+    def __init__(self, openai_client:OpenAI, name:str|None=None, life_time:int|None=None):
+        # Handle Defaults
+        if name is None:
+            name = DEFAULT_VECTOR_STORE_NAME
+        if life_time is None:
+            life_time = DEFAULT_LIFE_TIME
+
         # Set properties
         self.client = openai_client
         self.name = name
@@ -109,9 +143,9 @@ class Vector_Storage:
     """
     def Modify_Vector_Store(self, new_name:str=None, new_life_time:int=None) -> dict:
         # Set the new name and life time
-        if new_name != None:
+        if new_name is not None:
             self.name = new_name
-        if new_life_time != None:
+        if new_life_time is not None:
             self.days_until_expiration = new_life_time
 
         # Modify the vector store
@@ -182,15 +216,21 @@ class Vector_Storage:
 
     Parameters:
         file_path (str): The path of the file to attach to the vector store.
+        purpose (str): The purpose of the file. Can be "assistant", "fine-tune", "vision", or "batch".
+            Defaults to "assistant".
 
     Returns:
         attachment_status (str): The status of the file attachment.
     """
-    def Attach_New_File(self, file_path:str) -> str:
+    def Attach_New_File(self, file_path:str, purpose:str|None=None) -> str:
+        # Handle Defaults
+        if purpose is None or purpose not in FILE_PURPOSE_ENUM:
+            purpose = DEFAULT_FILE_PURPOSE
+
         # Upload the file
         uploaded_file = self.client.files.create(
             file=open(file_path, "rb"),
-            purpose="assistants"
+            purpose=purpose
         )
 
         # Attach the file

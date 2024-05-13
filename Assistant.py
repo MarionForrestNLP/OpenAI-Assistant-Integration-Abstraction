@@ -30,12 +30,12 @@ Properties
     thread (dict): The Assistant Thread instance
 
 Methods
-    Add_File_To_Vector_Store(file_path:str)
-    Update_Tool_Set(tool_set:list)
-    Delete_Assistant()
-    Send_Message(message_content:str, message_attachments:list=[])
-    Get_Message_History()
-    Get_Attributes()
+    Add_File_To_Vector_Store(file_path:str) -> str
+    Update_Tool_Set(tool_set:list) -> bool
+    Delete_Assistant() -> bool
+    Send_Message(message_content:str, message_attachments:list=[]) -> dict
+    Get_Message_History() -> list
+    Get_Attributes() -> dict
 """
 class Assistant:
     # Properties
@@ -51,6 +51,22 @@ class Assistant:
     thread = None
 
     # Constructor
+    """
+    Constructor for the Assistant class.
+    
+    Parameters
+        client (OpenAI): The OpenAI client object
+        assistant_name (str): The name of the assistant
+        instruction_prompt (str): The assistant's context prompt
+        tool_set (list): A list of tool dictionaries
+            Defaults to a list containing just the file_search tool
+        function_dictionary (dict): A dictionary of user defined functions
+            Defaults to an empty dictionary
+        model (str): The model to use for the assistant
+            Defaults to "gpt-3.5-turbo-0125"
+        model_parameters (dict): The parameters for the model
+            Defaults to {temperature: 1.0, top_p: 1.0}
+    """
     def __init__(
             self, client:OpenAI, assistant_name:str, instruction_prompt:str, tool_set:list|None=None,
             function_dictionary:dict|None=None, model:str|None=None, model_parameters:dict|None=None
@@ -68,6 +84,9 @@ class Assistant:
                     "type": "file_search"
                 }
             ]
+
+        # Verify file_search tool is present
+        tool_set = self.__Verify_File_Search_Tool(tool_set)
         
         # Set properties
         self.client = client
@@ -104,6 +123,37 @@ class Assistant:
         # Initialize thread
         self.thread = client.beta.threads.create()
     # End of Constructor
+
+    """
+    Verifies that the file_search tool is present in the tool set. If not, adds it.
+
+    Parameters
+        tool_set (list): A list of tool dictionaries
+    
+    Returns
+        tool_set (list): The updated tool set
+    """
+    def __Verify_File_Search_Tool(self, tool_set:list) -> list:
+        # Variable initialization
+        tools_present = {
+            'function': 0,
+            'file_search': 0,
+            'code_interpreter': 0
+        }
+
+        # Check for file_search tool
+        for tool in tool_set:
+            tools_present[tool["type"]] += 1
+
+        # Add file_search tool if not present
+        if tools_present["file_search"] == 0:
+            tool_set.append({
+                "type": "file_search"
+            })
+
+        # Return tool set
+        return tool_set
+    # Function End
 
     """
     Deletes the assistant. Call this method once you are done using the assistant.
