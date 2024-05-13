@@ -333,7 +333,7 @@ class Assistant:
             order="asc"
         ).data
 
-        if debugMode is False:
+        if debugMode is True:
             # return unformatted history
             return message_History
         else:
@@ -408,7 +408,16 @@ class Assistant:
     """
     def Get_Attributes(self) -> dict:
         attributes = {
-            "Not": "Implemented"
+            "id": self.intance.id,
+            'creation time': self.intance.created_at,
+            "name": self.name,
+            "instructions": self.instructions,
+            "tool_set": self.tool_set,
+            "user_defined_functions": self.user_defined_functions,
+            "model": self.model,
+            "model_parameters": self.model_parameters,
+            "vector_store": self.vector_store.Get_Attributes(),
+            "thread id": self.thread.id
         }
 
         return attributes

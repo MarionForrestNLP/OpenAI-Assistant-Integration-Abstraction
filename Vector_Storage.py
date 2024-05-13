@@ -4,8 +4,8 @@ from openai import OpenAI
 # Constants
 DEFAULT_LIFE_TIME = 1
 DEFAULT_VECTOR_STORE_NAME = "Vector_Storage"
-DEFAULT_FILE_PURPOSE = "assistant"
-FILE_PURPOSE_ENUM = ["assistant", "fine-tune", "vision", "batch"]
+DEFAULT_FILE_PURPOSE = "assistants"
+FILE_PURPOSE_ENUM = ["assistants", "fine-tune", "vision", "batch"]
 
 """
 Vector Storage Class
@@ -216,7 +216,7 @@ class Vector_Storage:
 
     Parameters:
         file_path (str): The path of the file to attach to the vector store.
-        purpose (str): The purpose of the file. Can be "assistant", "fine-tune", "vision", or "batch".
+        purpose (str): The purpose of the file. Can be "assistants", "fine-tune", "vision", or "batch".
             Defaults to "assistant".
 
     Returns:

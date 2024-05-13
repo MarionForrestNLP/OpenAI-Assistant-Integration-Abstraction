@@ -48,7 +48,7 @@ The constructor takes in the OpenAI client, the name of the assistant as a strin
 
 - **Get Message History**: This method returns the entire chat log up to a maximum of 25 messages. This method also checks for when the assistant is attempting to call [developer defined functions](https://platform.openai.com/docs/assistants/tools/function-calling/function-calling-beta) and calls the `Handle_Function_Calls` function defined earlier within **Assistant_Hander.py**.
 
-- **Print Characteristics**: Prints a string containing some key characteristics of the assistant. These characteristics are the assistant's id, name, creation time, description, instructions, metadata, tools, tool resources, repsonse format, model, temperature, and top p (not in that order).
+- **Get Attributes**: This method returns a dictionary containing the assistant's attributes. The dictionary contains the assistant's ID, creation time (*in seconds*), name, instructions, tool set, user defined functions, model, model parameters, vector store, and thread id.
 
 ## User Defined Functions
 
@@ -128,6 +128,6 @@ The constructor takes in the OpenAI client, the name of the vector store, and th
 - **Attach Existing File**: This method attaches an existing file to the vector store. It takes in the ID of the file you want to attach. It then creates a [vector store file object](https://platform.openai.com/docs/api-reference/vector-stores-files/file-object) using the OpenAI client to attach the file to the vector store. The method returns the status of the file attachment.
 
 - **Attach New File**: This method attaches a new file to the vector store. It takes in the path of the file you want to attach and the purpose of the file as an optional parameter (defaults to "assistant"). It then creates a [file object](https://platform.openai.com/docs/api-reference/files/object) using the OpenAI client then passes the file's id to the `Attach_Existing_File` method to attach the file to the vector store. The method returns the status of the file attachment.
-- Valid purposes are "assistant", "vision", "fine-tuning", and "batch".
+- Valid purposes are "assistants", "vision", "fine-tuning", and "batch".
 
 ***More documentation coming soon...***

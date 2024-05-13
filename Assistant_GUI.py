@@ -128,7 +128,8 @@ mainWindow.protocol("WM_DELETE_WINDOW", Event_Window_Close)
 Main Loop
 """
 print("Debug:")
-print(assistant.Get_Attributes())
+for key in assistant.Get_Attributes():
+    print(f"{key}: {assistant.Get_Attributes()[key]}")
 
 print("Running the GUI...")
 mainWindow.mainloop()
