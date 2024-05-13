@@ -5,7 +5,7 @@ import tkinter as tk
 # Assistant imports
 import Assistant as AST
 import Assistant_Tools
-import Local_Keys
+import Local_Keys as Put_Your_API
 from openai import OpenAI
 
 #\/ \/ Functions \/ \/
@@ -71,7 +71,7 @@ Create create and connect to an OpenAI API client
 print("Connecting to an assistant...")
 
 # Connect to the OpenAI API
-client = OpenAI(api_key=Local_Keys.Get_API_Key())
+client = OpenAI(api_key=Put_Your_API.Here()) # Put your API key here
 
 # Maintainence
 Assistant_Tools.Delete_Old_Vectors(client)

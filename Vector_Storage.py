@@ -17,7 +17,7 @@ class Vector_Storage:
         name (str): The name of the vector store. Defaults to "Vector_Storage".
         life_time (int): The time in terms of 24 hour days that the vector store will be kept alive. Defaults to 1.
     """
-    def __init__(self, openai_client:OpenAI, name:str="Vector_Storage", life_time:int=1) -> None:
+    def __init__(self, openai_client:OpenAI, name:str="Vector_Storage", life_time:int=1):
         # Set properties
         self.client = openai_client
         self.name = name

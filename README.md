@@ -2,7 +2,13 @@
 
 ## Goal
 
-This project was initialized to make the [OpenAI](https://platform.openai.com/docs/api-reference/introduction) assistant easier to integrate into your own projects.
+This project was initialized to make the [OpenAI](https://platform.openai.com/docs/api-reference/introduction) API easier to integrate into your own projects. With an emphasis on abstracting the [assistants api](https://platform.openai.com/docs/api-reference/assistants).
+
+## Table of Contents
+
+- [Assistant Class](#assistant-class)
+- [User Defined Functions](#user-defined-functions)
+- [Vector Store Class](#vector-store-class)
 
 ## Assistant Class
 
@@ -15,11 +21,20 @@ This class is used to facilitate all interactions with the OpenAI [assistant](ht
 - **Name**: The name of the assistant as is displayed on OpenAI assistants dashboard.
 - **Instructions**: The prompt used to set up the assistant's initial context and behavior.
 - **Tool Set**: The list of tools used by the assistant. file search, code interpreter, and function calling.
-- **Tool Resources**: The dictionary containing the id's of vector stores used by different tools.
-- **User Defined Functions**: The dictionary containing information about user defined functions. How this dictionary is used is explained further down. Defaults to an empty dictionary.
-- **Model Parameters**: The dictionary containing the assistant's model response parameters. Currently includes temperature and top P. Defaults to a temperature of 1 and a top_p of 1.
+- **User Defined Functions**: The dictionary containing information about user defined functions. How this dictionary is used is explained under [User Defined Functions](#user-defined-functions).
+- **Model Parameters**: The dictionary containing the assistant's model response parameters. Currently includes temperature and top P.
 - **Intance**: This is the instance of the Assistant that our chat bot is tied to and actively using.
 - **Thread**: This is the object in which user and assistant interactions are stored.
+- **Vector Store**: This is the internally referenced vector store used by the assistant. This is an instance of the [Vector Store class](#vector-store-class).
+
+### Constructor
+
+The constructor takes in the OpenAI client, the name of the assistant as a string, the instruction prompt as a string, the tool set as a list, a function dicitonary, the open ai model to implement as a string, and the model parameters as a dictionary. It then creates an assistant object using the OpenAI client and stores it in the instance property. The function dictionary is optional and will default to an empty dicitonary. The model string is optional and will default to `"gpt-3.5-turbo-0125"`. The model parameter dictionary is optional and will default to the following.
+
+    model_parameters = {
+        "temperature": 1.4,
+        "top_p": 1.0
+    }
 
 ### Methods
 
@@ -82,5 +97,34 @@ Within the constructor, after the tool resources, you must pass in a dictionary 
             "None"
         )
     }
+
+## Vector Store Class
+
+This class is designed to abstract and simplify interactions with vector stores. The main goal of this class was to remove reducancies within the assistant class.
+
+### Properties
+
+- Client: The Open AI client used to access the vector store and other APIs.
+- Name: A string representing the name of the vector store.
+- Days Until Expiration: An integer representing the number of 24 hour days until the vector store expires.
+- Instance: The vector store object being abstracted.
+
+### Constructor
+
+The constructor takes in the OpenAI client, the name of the vector store, and the number of days until the vector store expires. It then creates a vector store object using the OpenAI client and stores it in the instance property. The name and days until expiration properties are optional and will default to `"Vector_Storage"` and `1` respectively.
+
+### Methods
+
+- **Retrieve Vector Store**: This method allows you to replace the vector store created at initialization with a pre-existing vector store. It takes in the ID  of the vector store you want to retrieve. This method deletes the old instance of the the vector store and returns the retrieved instance.
+
+- **Delete Vector Store**: This method deletes the vector store instance. It gets the vector store ID, [deletes the vector store](https://platform.openai.com/docs/api-reference/vector-stores/delete) using the OpenAI client, and then updates the vector store instance property to None. The method returns a boolean indicating whether the deletion was successful or not.
+
+- **Modify Vector Store**: This method modifies the vector store instance. It takes in string representing the new name of the vector store and an integer representing the new number of days until the vector store expires. It then updates the vector store instance property with the new name and days until expiration. The method returns the modified instance.
+
+- **Get Attributes**: This method returns a dictionary containing the vector store's attributes. The dictionary contains the vector store's ID, name, status, creation time (*in seconds*), days until expiration, file count, memory usage (*in bytes*).
+
+- **Attach Existing File**: This method attaches an existing file to the vector store. It takes in the ID of the file you want to attach. It then creates a [vector store file object](https://platform.openai.com/docs/api-reference/vector-stores-files/file-object) using the OpenAI client to attach the file to the vector store. The method returns the status of the file attachment.
+
+- **Attach New File**: This method attaches a new file to the vector store. It takes in the path of the file you want to attach. It then creates a [file object](https://platform.openai.com/docs/api-reference/files/object) using the OpenAI client then passes the file's id to the `Attach_Existing_File` method to attach the file to the vector store. The method returns the status of the file attachment.
 
 ***More documentation coming soon...***
