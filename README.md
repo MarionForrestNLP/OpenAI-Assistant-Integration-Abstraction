@@ -12,37 +12,37 @@ This project was initialized to make the [OpenAI](https://platform.openai.com/do
 
 ## Assistant Class
 
-This class is used to facilitate all interactions with the OpenAI [assistant](https://platform.openai.com/docs/assistants/overview/agents). To construct an assistant you must pass in your OpenAI client instance, a name for the assistant, an instruction prompt, a tool set and their resources. All other parameters are optional.
+This class is designed to abstract interactions with the OpenAI [Assistant](https://platform.openai.com/docs/assistants/overview/agents). This implementation of the Assistant API does not support the [Code Interpreter](https://platform.openai.com/docs/assistants/tools/code-interpreter/code-interpreter-beta) tool. However, this implementation does have the [File Search](https://platform.openai.com/docs/assistants/tools/file-search/file-search-beta) tool built in and the [Function Calling](https://platform.openai.com/docs/assistants/tools/function-calling/function-calling-beta) tool can be added as an optional feature.
 
 ### Properties
 
 - **Client**: The OpenAI connection intance used to access the assistant and other APIs.
-- **Model**: The OpenAI AI model utilized by the assistant. gpt4, 3.5, etc.
 - **Name**: The name of the assistant as is displayed on OpenAI assistants dashboard.
 - **Instructions**: The prompt used to set up the assistant's initial context and behavior.
 - **Tool Set**: The list of tools used by the assistant. file search, code interpreter, and function calling.
 - **User Defined Functions**: The dictionary containing information about user defined functions. How this dictionary is used is explained under [User Defined Functions](#user-defined-functions).
+- **Model**: The OpenAI AI model utilized by the assistant. gpt4, 3.5, etc.
 - **Model Parameters**: The dictionary containing the assistant's model response parameters. Currently includes temperature and top P.
+- **Vector Store**: This is the internally referenced vector store used by the assistant. This is an instance of the [Vector Store class](#vector-store-class).
 - **Intance**: This is the instance of the Assistant that our chat bot is tied to and actively using.
 - **Thread**: This is the object in which user and assistant interactions are stored.
-- **Vector Store**: This is the internally referenced vector store used by the assistant. This is an instance of the [Vector Store class](#vector-store-class).
 
 ### Constructor
 
 The constructor takes in the OpenAI client, the name of the assistant as a string, the instruction prompt as a string, the tool set as a list, a function dicitonary, the open ai model to implement as a string, and the model parameters as a dictionary. It then creates an assistant object using the OpenAI client and stores it in the instance property. The function dictionary is optional and will default to an empty dicitonary. The model string is optional and will default to `"gpt-3.5-turbo-0125"`. The model parameter dictionary is optional and will default to the following.
 
     model_parameters = {
-        "temperature": 1.4,
+        "temperature": 1.0,
         "top_p": 1.0
     }
 
 ### Methods
 
-- **Add File to Vector Store**: This method adds a file to the assistant's internal vector store. It takes a file path as input, opens the file, creates a [file object](https://platform.openai.com/docs/api-reference/vector-stores-files/file-object) using the OpenAI client, and then adds the file to the assistant's internal vector store. The method returns the status of the vector file.
-
-- **Update Tool Set**: This method updates the tool set and tool resources used by the assistant. It takes a list of tool dictionaries and a dictionary of tool resources as input. It updates the assistant instance, tool set, and tool resources properties. The method returns a boolean indicating whether the update was successful or not.
-
 - **Delete Assistant**: This method deletes the assistant instance. It gets the assistant ID, [deletes the assistant](https://platform.openai.com/docs/api-reference/assistants/deleteAssistant) using the OpenAI client, and then updates the assistant instance property to None. The method returns a boolean indicating whether the deletion was successful or not.
+
+- **Add File to Vector Store**: This method adds a file to the assistant's internal vector store taking a file path as input. The file path is passed to the `Attach_New_File` method of the internal [vector store object](#methods-1). The method returns the status of additional operation.
+
+- **Update Tool Set**: This method updates the tool set used by the assistant. It takes a list of tool dictionaries. It updates the assistant instance and tool set. The method returns a boolean indicating whether the update was successful or not.
 
 - **Send Message**: This method creates a [message object](https://platform.openai.com/docs/api-reference/messages/object) and inserts it into the assistant's thread. The message object is then returned. [Attachments](https://platform.openai.com/docs/api-reference/messages/createMessage#messages-createmessage-attachments) can be added to a message and will inserted into the thread along side the message's content.
 
@@ -89,10 +89,12 @@ Within the constructor, after the tool resources, you must pass in a dictionary 
 
 #### Function Dictionary Example
 
+In this example, the library from which our function `Get_Current_Temperature` is imported is `Weather_Functions`. The function is called by `Weather_Functions.Get_Current_Temperature`. Recall that the function takes 2 parameters, `location` and `unit`. And in this case the function returns `None` when the function fails to execute.
+
     {
         "Get_Current_Temperature" : (
-            "Import My_Functions",
-            "My_Functions.Get_Current_Temperature",
+            "Import Weather_Functions",
+            "Weather_Functions.Get_Current_Temperature",
             2,
             "None"
         )
