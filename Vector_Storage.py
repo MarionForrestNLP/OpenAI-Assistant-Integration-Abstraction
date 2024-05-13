@@ -1,5 +1,4 @@
 from openai import OpenAI
-import json
 
 class Vector_Storage:
     # Properties
@@ -74,7 +73,11 @@ class Vector_Storage:
     Returns:
         deletion_status.deleted (bool): A boolean value indicating if the vector store was deleted successfully.
     """
-    def Delete_Vector_Store(self, delete_attached:bool=False) -> bool:
+    def Delete_Vector_Store(self, delete_attached:bool|None=None) -> bool:
+        # Handle Defaults
+        if delete_attached == None:
+            delete_attached = False
+
         # Delete files attached to the vector store if specified
         if delete_attached:
             # Get the files attached to the vector store

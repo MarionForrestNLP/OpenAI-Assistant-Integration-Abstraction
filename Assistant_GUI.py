@@ -81,8 +81,8 @@ assistant = AST.Assistant(
     client=client,
     assistant_name="NLPete",
     instruction_prompt=Assistant_Tools.Get_Assistant_Context(),
-    tool_Set=Assistant_Tools.Get_Assistant_Tools(),
-    function_Dictionary=Assistant_Tools.Get_Function_Dictionary(),
+    tool_set=Assistant_Tools.Get_Assistant_Tools(),
+    function_dictionary=Assistant_Tools.Get_Function_Dictionary(),
     model="gpt-3.5-turbo-0125",
     model_parameters={"temperature": 1.4, "top_p": 1.0}
 )
@@ -128,7 +128,7 @@ mainWindow.protocol("WM_DELETE_WINDOW", Event_Window_Close)
 Main Loop
 """
 print("Debug:")
-assistant.Print_Characteristics()
+print(assistant.Get_Attributes())
 
 print("Running the GUI...")
 mainWindow.mainloop()
