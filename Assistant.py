@@ -1,6 +1,7 @@
 # Imports
 import json
 from openai import OpenAI
+import Vector_Storage
 
 # Constants
 ASSISTANT_TEMPERATURE = 1.4
@@ -35,7 +36,6 @@ class Assistant:
     ast_Name = None
     ast_Instructions = None
     ast_Tool_Set = []
-    ast_Tool_Resources = {}
     ast_User_Defined_Functions = {}
     ast_Model_Parameters = {
         "temperature": ASSISTANT_TEMPERATURE,
@@ -43,11 +43,11 @@ class Assistant:
     }
     ast_Intance = None
     ast_Thread = None
+    ast_Vector_Store = None
 
     # Constructor
-    def __init__(self, client:OpenAI, assistant_name:str, instruction_prompt:str,
-                 tool_Set:list, tool_Resources:dict, function_Dictionary:dict={},
-                 model:str=ASSISTANT_MODEL, model_parameters:dict={},) -> None:
+    def __init__(self, client:OpenAI, assistant_name:str, instruction_prompt:str, tool_Set:list, 
+                 function_Dictionary:dict={}, model:str=ASSISTANT_MODEL, model_parameters:dict={},) -> None:
         
         # Set properties
         self.ast_Client = client
@@ -55,10 +55,16 @@ class Assistant:
         self.ast_Name = assistant_name
         self.ast_Instructions = instruction_prompt
         self.ast_Tool_Set = tool_Set
-        self.ast_Tool_Resources = tool_Resources
         self.ast_User_Defined_Functions = function_Dictionary
         if model_parameters != {}:
             self.ast_Model_Parameters["temperature"] = model_parameters["temperature"]
+
+        # Create internal vector store
+        self.ast_Vector_Store = Vector_Storage.Vector_Storage(
+            openai_client=self.ast_Client,
+            name=f"{self.ast_Name}_Vector_Store",
+            life_time=1
+        )
 
         # Create assistant
         self.ast_Intance = self.ast_Client.beta.assistants.create(
@@ -66,7 +72,13 @@ class Assistant:
             name=self.ast_Name,
             instructions=self.ast_Instructions,
             tools=self.ast_Tool_Set,
-            tool_resources=self.ast_Tool_Resources,
+            tool_resources={
+                "file_search": {
+                    "vector_store_ids": [
+                        self.ast_Vector_Store.Get_Attributes()["id"]
+                    ]
+                }
+            },
             temperature=self.ast_Model_Parameters["temperature"],
         )
 
@@ -85,9 +97,14 @@ class Assistant:
     Returns
         deletion_object.status (bool): The status of the operation
     """
-    def Delete_Assistant(self) -> bool:
+    def Delete_Assistant(self, Clear_Vector_Store:bool=False) -> bool:
         # get assistant id
         assistant_id = self.ast_Intance.id
+
+        # Delete vector store object
+        self.ast_Vector_Store.Delete_Vector_Store(
+            delete_attached=Clear_Vector_Store
+        )
 
         # Delete assistant
         deletion_object = self.ast_Client.beta.assistants.delete(
@@ -102,32 +119,20 @@ class Assistant:
     # Function End
 
     """
-    Adds a file to the assistant's vector store.
+    Adds a file to the assistant's internal vector store.
 
     Parameters
         file_path (str): The path to the file
 
     Returns
-        vector_file.status (str): The status of the operation
+        attachment_status (str): The status of the operation
     """
     def Add_File_To_Vector_Store(self, file_path:str) -> str:
-        # get vector store
-        vector_store_id = self.ast_Tool_Resources["file_search"]["vector_store_ids"][0]
-
-        # create file object
-        file_object = self.ast_Client.files.create(
-            file=open(file_path, "rb"),
-            purpose="assistants"
-        )
-
-        # add file to vector store
-        vector_file = self.ast_Client.beta.vector_stores.files.create(
-            vector_store_id=vector_store_id,
-            file_id=file_object.id
-        )
+        # Add file to vector store
+        attachment_status = self.ast_Vector_Store.Attach_New_File(file_path)
 
         # return status
-        return vector_file.status
+        return attachment_status
     # Function End
 
     """
@@ -140,19 +145,17 @@ class Assistant:
     Returns
         (bool): The completions status of the operation
     """
-    def Update_Tool_Set(self, tool_Set:list[dict], tool_Resources:dict) -> bool:
+    def Update_Tool_Set(self, tool_Set:list[dict]) -> bool:
         try:
             # Update tool set
             updated_assistant = self.ast_Client.beta.assistants.update(
                 assistant_id=self.ast_Intance.id,
                 tools=tool_Set,
-                tool_resources=tool_Resources
             )
 
             # update intance
             self.ast_Intance = updated_assistant
             self.ast_Tool_Set = tool_Set
-            self.ast_Tool_Resources = tool_Resources
 
             # return status
             return True

@@ -22,7 +22,9 @@ def Event_Window_Close() -> None:
     print("Closing window...")
 
     # Delete the assistant
-    assistant.Delete_Assistant()
+    assistant.Delete_Assistant(
+        Clear_Vector_Store=True
+    )
 
     # Close the window
     mainWindow.destroy()
@@ -71,20 +73,22 @@ print("Connecting to an assistant...")
 # Connect to the OpenAI API
 client = OpenAI(api_key=Local_Keys.Get_API_Key())
 
+# Maintainence
+Assistant_Tools.Delete_Old_Vectors(client)
+
 # Create an assistant
 assistant = AST.Assistant(
     client=client,
     assistant_name="NLPete",
     instruction_prompt=Assistant_Tools.Get_Assistant_Context(),
     tool_Set=Assistant_Tools.Get_Assistant_Tools(),
-    tool_Resources=Assistant_Tools.Get_Tool_Resources(client=client),
     function_Dictionary=Assistant_Tools.Get_Function_Dictionary(),
     model="gpt-3.5-turbo-0125",
     model_parameters={"temperature": 1.4, "top_p": 1.0}
 )
 
-# Maintainence
-Assistant_Tools.Delete_Old_Vectors(client)
+# Add file to assistant's vector store
+assistant.Add_File_To_Vector_Store(r"NLP_Logix_Company_Fact_Sheet.docx")
 
 """
 Build a simple GUI for the assistant
