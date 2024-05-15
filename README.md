@@ -1,4 +1,4 @@
-# **OpenAI Assistant Class Integration**
+# **OpenAI Assistant API Integration**
 
 ## Goal
 
@@ -7,8 +7,8 @@ This project was initialized to make the [OpenAI](https://platform.openai.com/do
 ## Table of Contents
 
 - [Assistant Class](#assistant-class)
-- [User Defined Functions](#user-defined-functions)
 - [Vector Store Class](#vector-store-class)
+- [User Defined Functions](#user-defined-functions)
 
 ## Assistant Class
 
@@ -53,6 +53,36 @@ The constructor takes in the OpenAI client, the name of the assistant as a strin
 - **Get Attributes**: This method returns a dictionary containing the assistant's attributes. The dictionary contains the assistant's ID, creation time (*in seconds*), name, instructions, tool set, user defined functions, model, model parameters, vector store, and thread id.
 
 - **Get Vector Store**: This method returns the assistant's internal [vector store](#vector-store-class).
+
+## Vector Store Class
+
+This class is designed to abstract and simplify interactions with vector stores. The main goal of this class was to remove reducancies within the assistant class.
+
+### Vector Store Properties
+
+- Client: The Open AI client used to access the vector store and other APIs.
+- Name: A string representing the name of the vector store.
+- Days Until Expiration: An integer representing the number of 24 hour days until the vector store expires.
+- Instance: The vector store object being abstracted.
+
+### Vector Store Constructor
+
+The constructor takes in the OpenAI client, the name of the vector store, and the number of days until the vector store expires. It then creates a vector store object using the OpenAI client and stores it in the instance property. The name and days until expiration properties are optional and will default to `"Vector_Storage"` and `1` respectively.
+
+### Vector Store Methods
+
+- **Retrieve Vector Store**: This method allows you to replace the vector store created at initialization with a pre-existing vector store. It takes in the ID  of the vector store you want to retrieve. This method deletes the old instance of the the vector store and returns the retrieved instance.
+
+- **Delete Vector Store**: This method deletes the vector store instance. It gets the vector store ID, [deletes the vector store](https://platform.openai.com/docs/api-reference/vector-stores/delete) using the OpenAI client, and then updates the vector store instance property to None. The method returns a boolean indicating whether the deletion was successful or not.
+
+- **Modify Vector Store**: This method modifies the vector store instance. It takes in string representing the new name of the vector store and an integer representing the new number of days until the vector store expires. It then updates the vector store instance property with the new name and days until expiration. The method returns the modified instance.
+
+- **Get Attributes**: This method returns a dictionary containing the vector store's attributes. The dictionary contains the vector store's ID, name, status, creation time (*in seconds*), days until expiration, file count, memory usage (*in bytes*).
+
+- **Attach Existing File**: This method attaches an existing file to the vector store. It takes in the ID of the file you want to attach. It then creates a [vector store file object](https://platform.openai.com/docs/api-reference/vector-stores-files/file-object) using the OpenAI client to attach the file to the vector store. The method returns the status of the file attachment.
+
+- **Attach New File**: This method attaches a new file to the vector store. It takes in the path of the file you want to attach and the purpose of the file as an optional parameter (defaults to "assistant"). It then creates a [file object](https://platform.openai.com/docs/api-reference/files/object) using the OpenAI client then passes the file's id to the `Attach_Existing_File` method to attach the file to the vector store. The method returns the status of the file attachment.
+  - Valid purposes are "assistants", "vision", "fine-tuning", and "batch".
 
 ## User Defined Functions
 
@@ -103,35 +133,5 @@ In this example, the library from which our function `Get_Current_Temperature` i
             "None"
         )
     }
-
-## Vector Store Class
-
-This class is designed to abstract and simplify interactions with vector stores. The main goal of this class was to remove reducancies within the assistant class.
-
-### Vector Store Properties
-
-- Client: The Open AI client used to access the vector store and other APIs.
-- Name: A string representing the name of the vector store.
-- Days Until Expiration: An integer representing the number of 24 hour days until the vector store expires.
-- Instance: The vector store object being abstracted.
-
-### Vector Store Constructor
-
-The constructor takes in the OpenAI client, the name of the vector store, and the number of days until the vector store expires. It then creates a vector store object using the OpenAI client and stores it in the instance property. The name and days until expiration properties are optional and will default to `"Vector_Storage"` and `1` respectively.
-
-### Vector Store Methods
-
-- **Retrieve Vector Store**: This method allows you to replace the vector store created at initialization with a pre-existing vector store. It takes in the ID  of the vector store you want to retrieve. This method deletes the old instance of the the vector store and returns the retrieved instance.
-
-- **Delete Vector Store**: This method deletes the vector store instance. It gets the vector store ID, [deletes the vector store](https://platform.openai.com/docs/api-reference/vector-stores/delete) using the OpenAI client, and then updates the vector store instance property to None. The method returns a boolean indicating whether the deletion was successful or not.
-
-- **Modify Vector Store**: This method modifies the vector store instance. It takes in string representing the new name of the vector store and an integer representing the new number of days until the vector store expires. It then updates the vector store instance property with the new name and days until expiration. The method returns the modified instance.
-
-- **Get Attributes**: This method returns a dictionary containing the vector store's attributes. The dictionary contains the vector store's ID, name, status, creation time (*in seconds*), days until expiration, file count, memory usage (*in bytes*).
-
-- **Attach Existing File**: This method attaches an existing file to the vector store. It takes in the ID of the file you want to attach. It then creates a [vector store file object](https://platform.openai.com/docs/api-reference/vector-stores-files/file-object) using the OpenAI client to attach the file to the vector store. The method returns the status of the file attachment.
-
-- **Attach New File**: This method attaches a new file to the vector store. It takes in the path of the file you want to attach and the purpose of the file as an optional parameter (defaults to "assistant"). It then creates a [file object](https://platform.openai.com/docs/api-reference/files/object) using the OpenAI client then passes the file's id to the `Attach_Existing_File` method to attach the file to the vector store. The method returns the status of the file attachment.
-  - Valid purposes are "assistants", "vision", "fine-tuning", and "batch".
 
 ***More documentation coming soon...***
