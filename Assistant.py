@@ -30,12 +30,14 @@ Properties
     thread (dict): The Assistant Thread instance
 
 Methods
-    Add_File_To_Vector_Store(file_path:str) -> str
-    Update_Tool_Set(tool_set:list) -> bool
     Delete_Assistant() -> bool
+    Add_File_To_Vector_Store(file_path:str) -> str
+    Add_Files_To_Vector_Store(file_paths:list[str]) -> bool
+    Update_Tool_Set(tool_set:list) -> bool
     Send_Message(message_content:str, message_attachments:list=[]) -> dict
     Get_Message_History() -> list
     Get_Attributes() -> dict
+    Get_Vector_Store() -> Vector_Storage.Vector_Storage
 """
 class Assistant:
     # Properties
@@ -205,6 +207,34 @@ class Assistant:
 
         # return status
         return attachment_status
+    # Function End
+
+    """
+    Adds multiple files to the assistant's internal vector store.
+
+    Parameters
+        file_paths (list): A list of file paths strings
+
+    Returns
+        returnBool (bool): A boolean indicating if all files were added successfully
+    """
+    def Add_Files_To_Vector_Store(self, file_paths:list[str]) -> bool:
+        # Variable initialization
+        attachment_statuses = []
+
+        # Interate through each file path
+        for file_path in file_paths:
+            # Add file to vector store
+            attachment_status = self.vector_store.Attach_New_File(file_path)
+
+            # Append status to list
+            attachment_statuses.append(attachment_status)
+
+        # Check if all files were added
+        returnBool = all(status == "completed" for status in attachment_statuses)
+
+        # return status
+        return returnBool
     # Function End
 
     """
@@ -421,6 +451,20 @@ class Assistant:
         }
 
         return attributes
+    # Function End
+
+    """
+    Gets the assistant's vector store.
+    
+    Parameters
+        None
+        
+    Returns
+        vector_store (Vector_Storage): The assistant's vector store
+    """
+    def Get_Vector_Store(self) -> Vector_Storage.Vector_Storage:
+        # Return the vector store
+        return self.vector_store
     # Function End
 
 # Class End
