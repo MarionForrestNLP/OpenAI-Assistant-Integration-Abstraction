@@ -7,26 +7,27 @@ DEFAULT_VECTOR_STORE_NAME = "Vector_Storage"
 DEFAULT_FILE_PURPOSE = "assistants"
 FILE_PURPOSE_ENUM = ["assistants", "fine-tune", "vision", "batch"]
 
-"""
-Vector Storage Class
-
-This class is used to create, modify, and delete vector stores. It also provides methods to attach files to the vector store.
-
-Properties:
-    client (OpenAI): The OpenAI client object.
-    name (str): The name of the vector store.
-    days_until_expiration (int): The time in terms of 24 hour days that the vector store will be kept alive.
-    intance (dict): The vector store instance.
-
-Methods:
-    Retrieve_Vector_Store(vector_store_id:str) -> dict
-    Delete_Vector_Store(delete_attached:bool|None=None) -> bool
-    Modify_Vector_Store(new_name:str=None, new_life_time:int=None) -> dict
-    Get_Attributes() -> dict
-    Attach_Existing_File(file_id:str) -> str
-    Attach_New_File(file_path:str) -> str
-"""
 class Vector_Storage:
+    """
+    Vector Storage Class
+
+    This class is used to create, modify, and delete vector stores. It also provides methods to attach files to the vector store.
+
+    Properties:
+        client (OpenAI): The OpenAI client object.
+        name (str): The name of the vector store.
+        days_until_expiration (int): The time in terms of 24 hour days that the vector store will be kept alive.
+        intance (dict): The vector store instance.
+
+    Methods:
+        Retrieve_Vector_Store(vector_store_id:str) -> dict
+        Delete_Vector_Store(delete_attached:bool|None=None) -> bool
+        Modify_Vector_Store(new_name:str=None, new_life_time:int=None) -> dict
+        Get_Attributes() -> dict
+        Attach_Existing_File(file_id:str) -> str
+        Attach_New_File(file_path:str) -> str
+    """
+
     # Properties
     client = None
     name = ""
@@ -34,17 +35,18 @@ class Vector_Storage:
     intance = None
 
     # Constructor
-    """
-    Constructor for the Vector_Storage class.
-
-    Parameters:
-        openai_client (OpenAI): The OpenAI client object.
-        name (str): The name of the vector store. 
-            Defaults to "Vector_Storage".
-        life_time (int): The time in terms of 24 hour days that the vector store will be kept alive.
-            Defaults to 1.
-    """
     def __init__(self, openai_client:OpenAI, name:str|None=None, life_time:int|None=None):
+        """
+        Constructor for the Vector_Storage class.
+
+        Parameters:
+            openai_client (OpenAI): The OpenAI client object.
+            name (str): The name of the vector store. 
+                Defaults to "Vector_Storage".
+            life_time (int): The time in terms of 24 hour days that the vector store will be kept alive.
+                Defaults to 1.
+        """
+
         # Handle Defaults
         if name is None:
             name = DEFAULT_VECTOR_STORE_NAME
@@ -66,16 +68,17 @@ class Vector_Storage:
         )
     # End of Constructor
 
-    """
-    Retrieves the vector store with the given id and replaces the instance with the retrieved vector store. Returns None if the vector store was not found.
-
-    Parameters:
-        vector_store_id (str): The id of the vector store to retrieve.
-
-    Returns:
-        self.intance (dict): The retrieved vector store.
-    """
     def Retrieve_Vector_Store(self, vector_store_id:str) -> dict:
+        """
+        Retrieves the vector store with the given id and replaces the instance with the retrieved vector store. Returns None if the vector store was not found.
+
+        Parameters:
+            vector_store_id (str): The id of the vector store to retrieve.
+
+        Returns:
+            self.intance (dict): The retrieved vector store.
+        """
+
         # Try to retrieve the vector store
         try:
             # Retrieve the vector store
@@ -98,16 +101,17 @@ class Vector_Storage:
             return None
     # End of Retrieve_Vector_Store
 
-    """
-    Deletes the vector store and sets the instance to None.
-
-    Parameters:
-        None
-
-    Returns:
-        deletion_status.deleted (bool): A boolean value indicating if the vector store was deleted successfully.
-    """
     def Delete_Vector_Store(self, delete_attached:bool|None=None) -> bool:
+        """
+        Deletes the vector store and sets the instance to None.
+
+        Parameters:
+            None
+
+        Returns:
+            deletion_status.deleted (bool): A boolean value indicating if the vector store was deleted successfully.
+        """
+
         # Handle Defaults
         if delete_attached == None:
             delete_attached = False
@@ -131,17 +135,18 @@ class Vector_Storage:
         return deletion_status.deleted
     # End of Delete_Vector_Store
 
-    """
-    Modifies the vector store with the given new name and life time. Returns the modified vector store.
-
-    Parameters:
-        new_name (str): The new name of the vector store.
-        new_life_time (int): The new life time of the vector store in terms of 24 hour days.
-
-    Returns:
-        self.intance (dict): The modified vector store.
-    """
     def Modify_Vector_Store(self, new_name:str=None, new_life_time:int=None) -> dict:
+        """
+        Modifies the vector store with the given new name and life time. Returns the modified vector store.
+
+        Parameters:
+            new_name (str): The new name of the vector store.
+            new_life_time (int): The new life time of the vector store in terms of 24 hour days.
+
+        Returns:
+            self.intance (dict): The modified vector store.
+        """
+
         # Set the new name and life time
         if new_name is not None:
             self.name = new_name
@@ -165,17 +170,17 @@ class Vector_Storage:
         return self.intance
     # End of Modify_Vector_Store
 
-
-    """
-    Returns a dictionary of the vector store's attributes.
-
-    Parameters:
-        None
-
-    Returns:
-        attributes (dict): A dictionary of the vector store's attributes.
-    """
     def Get_Attributes(self) -> dict:
+        """
+        Returns a dictionary of the vector store's attributes.
+
+        Parameters:
+            None
+
+        Returns:
+            attributes (dict): A dictionary of the vector store's attributes.
+        """
+
         # Create an attributes dictionary
         attributes = {
             "id": self.intance.id,
@@ -191,16 +196,17 @@ class Vector_Storage:
         return attributes
     # End of Get_Attributes
 
-    """
-    Attaches a file with the given id to the vector store. Returns the file's status.
-
-    Parameters:
-        file_id (str): The id of the file to attach to the vector store.
-
-    Returns:
-        vector_store_file.status (str): The status of the file attachment.
-    """
     def Attach_Existing_File(self, file_id:str) -> str:
+        """
+        Attaches a file with the given id to the vector store. Returns the file's status.
+
+        Parameters:
+            file_id (str): The id of the file to attach to the vector store.
+
+        Returns:
+            vector_store_file.status (str): The status of the file attachment.
+        """
+
         # Attach the file
         vector_store_file = self.client.beta.vector_stores.files.create_and_poll(
             vector_store_id=self.intance.id,
@@ -211,18 +217,19 @@ class Vector_Storage:
         return vector_store_file.status
     # End of Attach_Existing_File
 
-    """
-    Attaches a file with the given path to the vector store. Returns the file's status.
-
-    Parameters:
-        file_path (str): The path of the file to attach to the vector store.
-        purpose (str): The purpose of the file. Can be "assistants", "fine-tune", "vision", or "batch".
-            Defaults to "assistant".
-
-    Returns:
-        attachment_status (str): The status of the file attachment.
-    """
     def Attach_New_File(self, file_path:str, purpose:str|None=None) -> str:
+        """
+        Attaches a file with the given path to the vector store. Returns the file's status.
+
+        Parameters:
+            file_path (str): The path of the file to attach to the vector store.
+            purpose (str): The purpose of the file. Can be "assistants", "fine-tune", "vision", or "batch".
+                Defaults to "assistant".
+
+        Returns:
+            attachment_status (str): The status of the file attachment.
+        """
+
         # Handle Defaults
         if purpose is None or purpose not in FILE_PURPOSE_ENUM:
             purpose = DEFAULT_FILE_PURPOSE
@@ -239,3 +246,4 @@ class Vector_Storage:
         # Return the attachment status
         return attachment_status
     # End of Attach_New_File
+# End of Vector_Storage Class

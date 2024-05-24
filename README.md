@@ -29,6 +29,8 @@ This class is designed to abstract interactions with the OpenAI [Assistant](http
 - **User Defined Functions**: The dictionary containing information about user defined functions. How this dictionary is used is explained under [User Defined Functions](#user-defined-functions).
 - **Model**: The OpenAI AI model utilized by the assistant. gpt4, 3.5, etc.
 - **Model Parameters**: The dictionary containing the assistant's model response parameters. Currently includes temperature and top P.
+- **Max Prompt Tokens**: The maximum number of tokens allowed in a prompt by a user.
+- **Max Completion Tokens**: The maximum number of tokens allowed in a response from the assistant.
 - **Vector Store**: This is the internally referenced vector store used by the assistant. This is an instance of the [Vector Store class](#vector-store-class).
 - **Intance**: This is the instance of the Assistant that our chat bot is tied to and actively using.
 - **Thread**: This is the object in which user and assistant interactions are stored.
@@ -42,7 +44,11 @@ The constructor takes in the OpenAI client, the name of the assistant as a strin
         "top_p": 1.0
     }
 
+The max prompt tokens and max completion tokens parameters are bot integers and will both be set to 5,000 by default.
+
 ### Assistant Methods
+
+There are several methods designed to uphold the internal integrity of the class and are not intended to be called directly into your implementation. Those methods are not be listed below. The following are methods designed to be used in your implementations of this class.
 
 - **Delete Assistant**: This method deletes the assistant instance. It gets the assistant ID, [deletes the assistant](https://platform.openai.com/docs/api-reference/assistants/deleteAssistant) using the OpenAI client, and then updates the assistant instance property to None. The method returns a boolean indicating whether the deletion was successful or not.
 
@@ -52,9 +58,14 @@ The constructor takes in the OpenAI client, the name of the assistant as a strin
 
 - **Update Tool Set**: This method updates the tool set used by the assistant. It takes a list of tool dictionaries. It updates the assistant instance and tool set. The method returns a boolean indicating whether the update was successful or not.
 
-- **Send Message**: This method creates a [message object](https://platform.openai.com/docs/api-reference/messages/object) and inserts it into the assistant's thread. The message object is then returned. [Attachments](https://platform.openai.com/docs/api-reference/messages/createMessage#messages-createmessage-attachments) can be added to a message and will inserted into the thread along side the message's content.
+- **Send Message**: This is an *asynchronous* method that creates a [message object](https://platform.openai.com/docs/api-reference/messages/object) and inserts it into the assistant's thread. The message object is then returned. [Attachments](https://platform.openai.com/docs/api-reference/messages/createMessage#messages-createmessage-attachments) can be added to a message and will inserted into the thread along side the message's content.
 
-- **Get Message History**: This method returns the entire chat log up to a maximum of 25 messages. This method also checks for when the assistant is attempting to call [developer defined functions](https://platform.openai.com/docs/assistants/tools/function-calling/function-calling-beta) and calls the `Handle_Function_Calls` function defined earlier within **Assistant_Hander.py**.
+- **Get Message History**: This is an *asynchronous* method that takes in a `history_length` parameter and returns the entire chat log up to a maximum of `history_length` messages. This method also handles the assistant's attempts at calling [developer defined functions](https://platform.openai.com/docs/assistants/tools/function-calling/function-calling-beta). This method prints a loading message to the console while it waits for the assistant to finish its response. When `debugMode` is False or None, the method returns a list of dictionaries of the following format.
+
+        message = {
+            "role": "user" or "assistant",
+            "content": "Message content",
+        }
 
 - **Get Attributes**: This method returns a dictionary containing the assistant's attributes. The dictionary contains the assistant's ID, creation time (*in seconds*), name, instructions, tool set, user defined functions, model, model parameters, vector store, and thread id.
 

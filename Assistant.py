@@ -1,78 +1,87 @@
 # Imports
 import json
+import time
 import Vector_Storage
 from openai import OpenAI
+from openai.types import beta as Beta_Types
 
 # Constants
 DEFAULT_MODEL = "gpt-3.5-turbo-0125"
 DEFAULT_MESSAGE_HISTORY_LENGTH = 25
 DEFAULT_MAX_PROMPT_TOKENS = 5000
+DEFAULT_MAX_COMPLETION_TOKENS = 5000
 DEFAULT_MODEL_PARAMETERS = {
     "temperature": 1.0,
     "top_p": 1.0
 }
 
-"""
-Assistant Class
-
-This class is designed to abstract interactions with the OpenAI Assistant
-
-Properties
-    client (OpenAI): The OpenAI client instance
-    name (str): The name of the assistant
-    instructions (str): The assistant's context prompt
-    tool_set (list): A list of tool dictionaries
-    user_defined_functions (dict): A dictionary of user defined functions
-    model (str): The model to use for the assistant
-    model_parameters (dict): The parameters for the model
-    vector_store (Vector_Storage): The internal vector store
-    intance (dict): The OpenAI Assistant instance
-    thread (dict): The Assistant Thread instance
-
-Methods
-    Delete_Assistant() -> bool
-    Add_File_To_Vector_Store(file_path:str) -> str
-    Add_Files_To_Vector_Store(file_paths:list[str]) -> bool
-    Update_Tool_Set(tool_set:list) -> bool
-    Send_Message(message_content:str, message_attachments:list=[]) -> dict
-    Get_Message_History() -> list
-    Get_Attributes() -> dict
-    Get_Vector_Store() -> Vector_Storage.Vector_Storage
-"""
+# \/ \/ Classes \/ \/
 class Assistant:
+    """
+    Assistant Class
+
+    This class is designed to abstract interactions with the OpenAI Assistant
+
+    Properties
+        client (OpenAI): The OpenAI client instance
+        name (str): The name of the assistant
+        instructions (str): The assistant's context prompt
+        tool_set (list): A list of tool dictionaries
+        user_defined_functions (dict): A dictionary of user defined functions
+        model (str): The model to use for the assistant
+        model_parameters (dict): The parameters for the model
+        max_prompt_tokens (int): The maximum number of prompt tokens
+        max_completion_tokens (int): The maximum number of completion tokens
+        vector_store (Vector_Storage): The internal vector store
+        intance (openai.types.beta.Assistant): The OpenAI Assistant instance
+        thread (openai.types.beta.Thread): The Assistant Thread instance
+
+    Methods
+        Delete_Assistant() -> bool
+        Add_File_To_Vector_Store(file_path:str) -> str
+        Add_Files_To_Vector_Store(file_paths:list[str]) -> bool
+        Update_Tool_Set(tool_set:list) -> bool
+        Send_Message(message_content:str, message_attachments:list=[]) -> dict
+        Get_Message_History() -> list
+        Get_Attributes() -> dict
+        Get_Vector_Store() -> Vector_Storage.Vector_Storage
+    """
+
     # Properties
-    client = None
-    name = None
-    instructions = None
-    tool_set = []
-    user_defined_functions = None
-    model = None
-    model_parameters = None
-    vector_store = None
-    intance = None
-    thread = None
+    client:OpenAI
+    name:str|None = ""
+    instructions:str|None = ""
+    tool_set:list|None = []
+    user_defined_functions:dict|None = {}
+    model:str|None = ""
+    model_parameters:dict|None = {}
+    max_prompt_tokens:int|None = None
+    max_completion_tokens:int|None = None
+    vector_store:Vector_Storage.Vector_Storage
+    intance:Beta_Types.Assistant
+    thread:Beta_Types.Thread
 
     # Constructor
-    """
-    Constructor for the Assistant class.
-    
-    Parameters
-        client (OpenAI): The OpenAI client object
-        assistant_name (str): The name of the assistant
-        instruction_prompt (str): The assistant's context prompt
-        tool_set (list): A list of tool dictionaries
-            Defaults to a list containing just the file_search tool
-        function_dictionary (dict): A dictionary of user defined functions
-            Defaults to an empty dictionary
-        model (str): The model to use for the assistant
-            Defaults to "gpt-3.5-turbo-0125"
-        model_parameters (dict): The parameters for the model
-            Defaults to {temperature: 1.0, top_p: 1.0}
-    """
     def __init__(
             self, client:OpenAI, assistant_name:str, instruction_prompt:str, tool_set:list|None=None,
-            function_dictionary:dict|None=None, model:str|None=None, model_parameters:dict|None=None
+            function_dictionary:dict|None=None, model:str|None=None, model_parameters:dict|None=None,
+            max_prompt_tokens:int|None=None, max_completion_tokens:int|None=None
         ):
+        """
+        Constructor for the Assistant class.
+        
+        Parameters
+            client (OpenAI): The OpenAI client object
+            assistant_name (str): The name of the assistant
+            instruction_prompt (str): The assistant's context prompt
+            tool_set (list): A list of tool dictionaries. Defaults to a list containing just the file_search tool
+            function_dictionary (dict): A dictionary of user defined functions. Defaults to an empty dictionary
+            model (str): The model to use for the assistant. Defaults to "gpt-3.5-turbo-0125"
+            model_parameters (dict): The parameters for the model. Defaults to {temperature: 1.0, top_p: 1.0}
+            max_prompt_tokens (int): The maximum number of prompt tokens. Defaults to 5000
+            max_completion_tokens (int): The maximum number of completion tokens. Defaults to 5000
+        """
+
         # Hande defaults
         if model_parameters is None:
             model_parameters = DEFAULT_MODEL_PARAMETERS
@@ -86,6 +95,10 @@ class Assistant:
                     "type": "file_search"
                 }
             ]
+        if max_prompt_tokens is None:
+            max_prompt_tokens = DEFAULT_MAX_PROMPT_TOKENS
+        if max_completion_tokens is None:
+            max_completion_tokens = DEFAULT_MAX_COMPLETION_TOKENS
 
         # Verify file_search tool is present
         tool_set = self.__Verify_File_Search_Tool(tool_set)
@@ -98,6 +111,7 @@ class Assistant:
         self.user_defined_functions = function_dictionary
         self.model = model
         self.model_parameters = model_parameters
+        self.max_prompt_tokens = max_prompt_tokens
 
         # Create internal vector store
         self.vector_store = Vector_Storage.Vector_Storage(
@@ -126,16 +140,17 @@ class Assistant:
         self.thread = client.beta.threads.create()
     # End of Constructor
 
-    """
-    Verifies that the file_search tool is present in the tool set. If not, adds it.
-
-    Parameters
-        tool_set (list): A list of tool dictionaries
-    
-    Returns
-        tool_set (list): The updated tool set
-    """
     def __Verify_File_Search_Tool(self, tool_set:list) -> list:
+        """
+        Verifies that the file_search tool is present in the tool set. If not, adds it.
+
+        Parameters
+            tool_set (list): A list of tool dictionaries
+        
+        Returns
+            tool_set (list): The updated tool set
+        """
+        
         # Variable initialization
         tools_present = {
             'function': 0,
@@ -157,17 +172,18 @@ class Assistant:
         return tool_set
     # Function End
 
-    """
-    Deletes the assistant. Call this method once you are done using the assistant.
-
-    Parameters
-        Clear_Vector_Store (bool): A flag to delete the files attached to the internal vector store.
-            Defaults to False.
-
-    Returns
-        deletion_object.status (bool): The status of the operation
-    """
     def Delete_Assistant(self, Clear_Vector_Store:bool|None=None) -> bool:
+        """
+        Deletes the assistant. Call this method once you are done using the assistant.
+
+        Parameters
+            Clear_Vector_Store (bool): A flag to delete the files attached to the internal vector store.
+                Defaults to False.
+
+        Returns
+            deletion_object.status (bool): The status of the operation
+        """
+
         # Handle defaults
         if Clear_Vector_Store is None:
             Clear_Vector_Store = False
@@ -192,33 +208,35 @@ class Assistant:
         return deletion_object.deleted
     # Function End
 
-    """
-    Adds a file to the assistant's internal vector store.
-
-    Parameters
-        file_path (str): The path to the file
-
-    Returns
-        attachment_status (str): The status of the operation
-    """
     def Add_File_To_Vector_Store(self, file_path:str) -> str:
+        """
+        Adds a file to the assistant's internal vector store.
+
+        Parameters
+            file_path (str): The path to the file
+
+        Returns
+            attachment_status (str): The status of the operation
+        """
+
         # Add file to vector store
         attachment_status = self.vector_store.Attach_New_File(file_path)
 
         # return status
         return attachment_status
     # Function End
-
-    """
-    Adds multiple files to the assistant's internal vector store.
-
-    Parameters
-        file_paths (list): A list of file paths strings
-
-    Returns
-        returnBool (bool): A boolean indicating if all files were added successfully
-    """
+    
     def Add_Files_To_Vector_Store(self, file_paths:list[str]) -> bool:
+        """
+        Adds multiple files to the assistant's internal vector store.
+
+        Parameters
+            file_paths (list): A list of file paths strings
+
+        Returns
+            returnBool (bool): A boolean indicating if all files were added successfully
+        """
+        
         # Variable initialization
         attachment_statuses = []
 
@@ -237,16 +255,17 @@ class Assistant:
         return returnBool
     # Function End
 
-    """
-    Updates the assistant's tools.
-
-    Parameters
-        tool_Set (list): A list of tool dictionaries
-
-    Returns
-        (bool): The completions status of the operation
-    """
     def Update_Tool_Set(self, tool_set:list[dict]) -> bool:
+        """
+        Updates the assistant's tools.
+
+        Parameters
+            tool_Set (list): A list of tool dictionaries
+
+        Returns
+            (bool): The completions status of the operation
+        """
+
         try:
             # Update tool set
             updated_assistant = self.client.beta.assistants.update(
@@ -265,20 +284,22 @@ class Assistant:
             return False
     # Function End
 
-    """
-    Adds a new message to the assistant's thread
-    and returns the new message object. Also adds
-    attachments to the message if any are passed.
+    
+    async def Send_Message(self, message_content:str, message_attachments:list[dict]|None=None) -> dict:
+        """
+        Adds a new message to the assistant's thread
+        and returns the new message object. Also adds
+        attachments to the message if any are passed.
 
-    Parameters
-        message_content (str): The text content of the message
-        message_attachments (list): A list of attachment dictionaries.
-            Defaults to none.
+        Parameters
+            message_content (str): The text content of the message
+            message_attachments (list): A list of attachment dictionaries.
+                Defaults to none.
 
-    Returns
-        message (dict): The new message object
-    """
-    def Send_Message(self, message_content:str, message_attachments:list[dict]|None=None) -> dict:
+        Returns
+            message (dict): The new message object
+        """
+
         # Variable initialization
         message = None
 
@@ -311,20 +332,55 @@ class Assistant:
         return message
     # Function End
 
-    """
-    Gets the assistant's message history
-    and returns a list of message objects.
+    def __Print_Loading_Message(self) -> None:
+        """
+        Prints a loading message to the console.
 
-    Parameters
-        history_length (int): The number of messages to retrieve.
-            Defaults to 25.
-        debugMode (bool): A flag to return unformatted messages.
-            Defaults to False.
+        Parameters
+            None
 
-    Returns
-        history (list): A list of message objects
-    """
-    def Get_Message_History(self, history_length:int|None=None, debugMode:bool|None=None) -> list:
+        Returns
+            None
+        """
+
+        # Variable initialization
+        outString = f"{self.name} Generating Response"
+    
+        # Print loading message
+        print(outString, end="")
+        for __ in range(3):
+            for _ in range(3):
+                print(".", end="")
+                time.sleep(0.1)
+            # Loop End
+
+            print("\b"*3 + " "*3 + "\b"*3, end="")
+        # Loop End
+
+        # Clear line
+        print("\b"*len(outString) + " "*len(outString) + "\b"*len(outString), end="")
+    # Function End
+
+    async def Get_Message_History(self, history_length:int|None=None, debugMode:bool|None=None) -> list:
+        """
+        Gets the assistant's message history
+        and returns a list of message objects.
+
+        Parameters
+            history_length (int): The number of messages to retrieve.
+                Defaults to 25.
+            debugMode (bool): A flag to return unformatted messages.
+                Defaults to False.
+
+        Returns
+            message_History (list[message]): A list of message objects.
+                or
+            message_History_F (list[dict]): A list of dictionaries containing limited information from message objects.
+        """
+
+        # Variable initialization
+        runFailed = False
+
         # Handle defaults
         if history_length is None:
             history_length = DEFAULT_MESSAGE_HISTORY_LENGTH
@@ -339,7 +395,8 @@ class Assistant:
         local_Run = self.client.beta.threads.runs.create(
             thread_id=self.thread.id,
             assistant_id=self.intance.id,
-            max_prompt_tokens=DEFAULT_MAX_PROMPT_TOKENS
+            max_prompt_tokens=self.max_prompt_tokens,
+            max_completion_tokens=self.max_completion_tokens
         )
 
         # check if run is complete
@@ -355,6 +412,13 @@ class Assistant:
 
                 # handle function calls
                 self.__Handle_Function_Calls(self.client, local_Run, pending_Functions)
+            elif local_Run.status == 'failed':
+                runFailed = True
+                break
+            elif local_Run.status == 'in_progress' or local_Run.status == 'pending' or local_Run.status == 'incomplete':
+                self.__Print_Loading_Message()
+                continue
+        # Loop End
 
         # get history
         message_History = self.client.beta.threads.messages.list(
@@ -364,20 +428,64 @@ class Assistant:
         ).data
 
         if debugMode is True:
+            if runFailed:
+                return "Run Failed"
+                        
             # return unformatted history
             return message_History
         else:
             # format history
             message_History_F = []
             for message in message_History:
-                if message.role == "assistant":
-                    message_History_F.append(f"{self.name}: {message.content[0].text.value}")
-                else:
-                    message_History_F.append(f"User: {message.content[0].text.value}")
+                for message_index in range(len(message.content)):
+                    # Create formatted message dictionary
+                    formatted_message = {
+                        "role": message.role,
+                        "text": message.content[message_index].text.value,
+                        # "citation": message.content[message_index].text.annotations,
+                        # "attachments": message.attachments[message_index].file_id if len(message.attachments) > 0 else None,
+                    }
+
+                    # Append message to history
+                    message_History_F.append(formatted_message)
+                # Loop End
+            # Loop End
+
+            if runFailed:
+                message_History_F.append({
+                    "role": "assistant",
+                    "text": "Run Failed"
+                })
+
+            # return formatted history
             return message_History_F
     # Function End
 
+    def __Remove_Escape_Characters(self, message:str) -> str:
+        """
+        Attempts to remove escape characters from strings used in exec() and eval() calls
+
+        Parameters
+            message (str): The message to clean
+
+        Returns
+            cleanedMessage (str): The cleaned message
+        """
+
+        # Remove single quotes
+        cleanedMessage = message.replace("'", "")
+    
+        # Remove double quotes
+        cleanedMessage = message.replace('"', "")
+
+        # Return cleaned message
+        return cleanedMessage
+    # Function End
+
     def __Handle_Function_Calls(self, client, runInstance, functionObjectList) -> None:
+        # Variable initialization
+        toolOutputs = []
+
         # Iterate through each function call
         for functionObject in functionObjectList:
             functionObjectDict = dict(functionObject)
@@ -401,42 +509,49 @@ class Assistant:
                         for i in range(self.user_defined_functions[functionName][2]):
                             if i != 0:
                                 function_call_string = function_call_string + ", "
-                            function_call_string = function_call_string + "\'" + args[i] + "\'"
+                            function_call_string = function_call_string + "\'" + self.__Remove_Escape_Characters(args[i]) + "\'"
                         function_call_string = function_call_string + ")"
 
                         # Execute function
                         returnObject = eval(function_call_string)
+                        toolOutputs.append({
+                            "tool_call_id": functionObjectDict["id"],
+                            "output": returnObject
+                        })
                     except Exception as e:
                         print(e)
                         # Return fail case
                         returnObject = self.user_defined_functions[functionName][3]
+                        toolOutputs.append({
+                            "tool_call_id": functionObjectDict["id"],
+                            "output": returnObject
+                        })
             # Loop End
-
-            # Update run instance
-            updatedRun = client.beta.threads.runs.submit_tool_outputs(
-                thread_id=runInstance.thread_id,
-                run_id=runInstance.id,
-                tool_outputs=[
-                    {
-                        "tool_call_id": functionObjectDict["id"],
-                        "output": returnObject
-                    }
-                ]
-            )
         # Loop End
+
+        # Update run instance
+        updatedRun = client.beta.threads.runs.submit_tool_outputs(
+            thread_id=runInstance.thread_id,
+            run_id=runInstance.id,
+            tool_outputs=toolOutputs
+        )
+
+        # Return None
         return None
     # Function End
 
-    """
-    Gets the assistant's attributes.
-
-    Parameters
-        None
-
-    Returns
-        attributes (dict): The assistant's attributes
-    """
+    
     def Get_Attributes(self) -> dict:
+        """
+        Gets the assistant's attributes.
+
+        Parameters
+            None
+
+        Returns
+            attributes (dict): The assistant's attributes
+        """
+
         attributes = {
             "id": self.intance.id,
             'creation time': self.intance.created_at,
@@ -453,18 +568,18 @@ class Assistant:
         return attributes
     # Function End
 
-    """
-    Gets the assistant's vector store.
-    
-    Parameters
-        None
-        
-    Returns
-        vector_store (Vector_Storage): The assistant's vector store
-    """
     def Get_Vector_Store(self) -> Vector_Storage.Vector_Storage:
+        """
+        Gets the assistant's vector store.
+        
+        Parameters
+            None
+            
+        Returns
+            vector_store (Vector_Storage): The assistant's vector store
+        """
+
         # Return the vector store
         return self.vector_store
     # Function End
-
 # Class End
