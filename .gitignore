@@ -2,5 +2,11 @@ Local_Keys.json
 Local_Keys.py
 NLP_Logix_Company_Fact_Sheet.docx
 client_emails.csv
+StreamTesting.py
+Cleaner.py
+Back_To_Back.py
+unanswerable_questions.csv
+Assistant_TUI.py
+Assistant_GUI.py
 
 __pycache__/
