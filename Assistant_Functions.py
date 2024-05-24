@@ -25,3 +25,18 @@ def Record_Client_Email(clientEmail:str, clientCompanyName:str) -> str:
     except:
         return 'False'
 # Function End
+
+def Unanswerable_Question(question:str|None) -> str:
+    if question is None:
+        question = "Type 1 Error"
+
+    question = question.replace("," ," --")
+
+    # Record the unanswerable question
+    try:
+        with open('unanswerable_questions.csv', 'a') as file:
+            file.write(f"{str(datetime.now())},{question}\n")
+        return 'True'
+    except:
+        return 'False'
+# Function End
