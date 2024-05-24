@@ -6,7 +6,12 @@ StreamTesting.py
 Cleaner.py
 Back_To_Back.py
 unanswerable_questions.csv
+
 Assistant_TUI.py
 Assistant_GUI.py
+Assistant_Context_Prompt.txt
+Assistant_Functions.py
+Assistant_Handler.py
+Assistant_Tools.json
 
 __pycache__/
