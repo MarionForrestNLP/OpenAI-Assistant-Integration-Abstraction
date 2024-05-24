@@ -8,7 +8,6 @@ This project was initialized to make the [OpenAI](https://platform.openai.com/do
 
 - Rewrite the [Get_Message_History](#assistant-methods) method to return more information from [message objects](https://platform.openai.com/docs/api-reference/messages/object).
 - Rebuild and improve the GUI
-- Combine the assistant tools and assistant functions files into a single file
 
 ## Table of Contents
 
