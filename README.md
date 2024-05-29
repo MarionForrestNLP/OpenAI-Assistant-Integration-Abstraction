@@ -7,6 +7,7 @@ This project was initialized to make the [OpenAI](https://platform.openai.com/do
 ## Planned Features and Changes
 
 - Implement streaming for the [Get_Message_History](#assistant-methods) method.
+- Implement file attachments for the [Send_Message](#assistant-methods) method.
 
 ## Table of Contents
 
@@ -73,7 +74,7 @@ The max prompt tokens and max completion tokens parameters are bot integers and 
 
 - **Get Vector Store**: This method returns the assistant's internal [vector store](#vector-store-class).
 
-- **Send Message**: This method creates a [message object](https://platform.openai.com/docs/api-reference/messages/object) and inserts it into the assistant's thread. The message object is then returned.
+- **Send Message**: This method creates a [message object](https://platform.openai.com/docs/api-reference/messages/object) and inserts it into the assistant's thread. The message object is then returned. This implementation does not yet support file attachments.
 
 - **Update Tool Set**: This method updates the tool set used by the assistant. It takes a list of tool dictionaries. It updates the assistant instance and tool set. The method returns a boolean indicating whether the update was successful or not.
 
