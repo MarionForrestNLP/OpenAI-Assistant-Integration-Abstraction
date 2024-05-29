@@ -1,5 +1,6 @@
 # Imports
 import json
+import os
 import time
 import Vector_Storage
 from openai import OpenAI
@@ -8,8 +9,8 @@ from openai.types import beta as Beta_Types
 # Constants
 DEFAULT_MODEL = "gpt-3.5-turbo-0125"
 DEFAULT_MESSAGE_HISTORY_LENGTH = 25
-DEFAULT_MAX_PROMPT_TOKENS = 5000
-DEFAULT_MAX_COMPLETION_TOKENS = 5000
+DEFAULT_MAX_PROMPT_TOKENS = 10000 # OpenAI recommends at least 20,000 prompt tokens for best results
+DEFAULT_MAX_COMPLETION_TOKENS = 10000
 DEFAULT_MODEL_PARAMETERS = {
     "temperature": 1.0,
     "top_p": 1.0
@@ -83,13 +84,13 @@ class Assistant:
         """
 
         # Hande defaults
-        if model_parameters is None:
+        if (model_parameters is None) or (len(model_parameters.keys()) == 0):
             model_parameters = DEFAULT_MODEL_PARAMETERS
         if model is None:
             model = DEFAULT_MODEL
-        if function_dictionary is None:
+        if (function_dictionary is None) or (len(function_dictionary.keys()) == 0):
             function_dictionary = {}
-        if tool_set is None:
+        if (tool_set is None) or (len(tool_set) == 0):
             tool_set = [
                 {
                     "type": "file_search"
@@ -172,7 +173,7 @@ class Assistant:
         return tool_set
     # Function End
 
-    def Delete_Assistant(self, Clear_Vector_Store:bool|None=None) -> bool:
+    def Delete_Assistant(self, clear_vector_store:bool|None=None) -> bool:
         """
         Deletes the assistant. Call this method once you are done using the assistant.
 
@@ -185,15 +186,15 @@ class Assistant:
         """
 
         # Handle defaults
-        if Clear_Vector_Store is None:
-            Clear_Vector_Store = False
+        if clear_vector_store is None:
+            clear_vector_store = False
 
         # get assistant id
         assistant_id = self.intance.id
 
         # Delete vector store object
         self.vector_store.Delete_Vector_Store(
-            delete_attached=Clear_Vector_Store
+            delete_attached=clear_vector_store
         )
 
         # Delete assistant
@@ -208,27 +209,10 @@ class Assistant:
         return deletion_object.deleted
     # Function End
 
-    def Add_File_To_Vector_Store(self, file_path:str) -> str:
+    def Attach_File(self, file_paths:list[str]|None) -> bool:
         """
-        Adds a file to the assistant's internal vector store.
-
-        Parameters
-            file_path (str): The path to the file
-
-        Returns
-            attachment_status (str): The status of the operation
-        """
-
-        # Add file to vector store
-        attachment_status = self.vector_store.Attach_New_File(file_path)
-
-        # return status
-        return attachment_status
-    # Function End
-    
-    def Add_Files_To_Vector_Store(self, file_paths:list[str]) -> bool:
-        """
-        Adds multiple files to the assistant's internal vector store.
+        Takes in a list of file path strings and adds the repective files to the assistant's internal vector store.
+        Returns False if any of the files were not added successfully or if no file paths were provided.
 
         Parameters
             file_paths (list): A list of file paths strings
@@ -236,23 +220,33 @@ class Assistant:
         Returns
             returnBool (bool): A boolean indicating if all files were added successfully
         """
+
+        if (file_paths is not None) and (len(file_paths) > 0):
+            # Iterate through file paths
+            for filePath in file_paths:
+                # Check if file path exists
+                if os.path.exists(filePath) == True:
+                    # Send to vector store
+                    attachmentStatus = self.vector_store.Attach_New_File(file_path=filePath)
+
+                    # return status
+                    if attachmentStatus == "completed":
+                        continue
+                    else:
+                        return False
+                
+                # Non-existent file path
+                else:
+                    # return status
+                    return False
+            # Loop End
+                
+            # return status
+            return True
         
-        # Variable initialization
-        attachment_statuses = []
-
-        # Interate through each file path
-        for file_path in file_paths:
-            # Add file to vector store
-            attachment_status = self.vector_store.Attach_New_File(file_path)
-
-            # Append status to list
-            attachment_statuses.append(attachment_status)
-
-        # Check if all files were added
-        returnBool = all(status == "completed" for status in attachment_statuses)
-
-        # return status
-        return returnBool
+        # No file paths provided
+        else:
+            return False
     # Function End
 
     def Update_Tool_Set(self, tool_set:list[dict]) -> bool:
@@ -285,50 +279,25 @@ class Assistant:
     # Function End
 
     
-    async def Send_Message(self, message_content:str, message_attachments:list[dict]|None=None) -> dict:
+    async def Send_Message(self, message_content:str) -> dict:
         """
         Adds a new message to the assistant's thread
-        and returns the new message object. Also adds
-        attachments to the message if any are passed.
+        and returns the new message object.
 
         Parameters
             message_content (str): The text content of the message
-            message_attachments (list): A list of attachment dictionaries.
-                Defaults to none.
-
         Returns
             message (dict): The new message object
         """
 
-        # Variable initialization
-        message = None
-
-        # Handle defaults
-        if message_attachments is None: # Create message without attachments
-            message = self.client.beta.threads.messages.create(
-                thread_id=self.thread.id,
-                role="user",
-                content=message_content
-            )
-        else: # Create message with attachments
-            # Format attachments
-            formatted_message_attachments = [None]
-            if message_attachments[0] is not None:
-                for attachment in message_attachments:
-                    formatted_message_attachments.append({
-                        "file_id": attachment.id,
-                        "tools": [{"type": "file_search"}]
-                    })
-                # Loop end
-            
-            # Create message
-            message = self.client.beta.threads.messages.create(
-                thread_id=self.thread.id,
-                role="user",
-                content=message_content,
-                attachments=formatted_message_attachments
-            )
+        # Send message
+        message = self.client.beta.threads.messages.create(
+            thread_id=self.thread.id,
+            role="user",
+            content=message_content
+        )
         
+        # Return message
         return message
     # Function End
 

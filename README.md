@@ -24,7 +24,7 @@ This class is designed to abstract interactions with the OpenAI [Assistant](http
 
 - **Client**: The OpenAI connection intance used to access the assistant and other APIs.
 - **Name**: The name of the assistant as is displayed on OpenAI assistants dashboard.
-- **Instructions**: The prompt used to set up the assistant's initial context and behavior.
+- **Instructions**: The context prompt used to set up the assistant's initial behavior. Be concise and clear in your instructions to the assistant. This prompt is included in the **prompt tokens** count, thus it is recommended you keep it as short as possible.
 - **Tool Set**: The list of tools used by the assistant. file search, code interpreter, and function calling.
 - **User Defined Functions**: The dictionary containing information about user defined functions. How this dictionary is used is explained under [User Defined Functions](#user-defined-functions).
 - **Model**: The OpenAI AI model utilized by the assistant. gpt4, 3.5, etc.
@@ -52,19 +52,17 @@ There are several methods designed to uphold the internal integrity of the class
 
 - **Delete Assistant**: This method deletes the assistant instance. It gets the assistant ID, [deletes the assistant](https://platform.openai.com/docs/api-reference/assistants/deleteAssistant) using the OpenAI client, and then updates the assistant instance property to None. The method returns a boolean indicating whether the deletion was successful or not.
 
-- **Add File to Vector Store**: This method adds a file to the assistant's internal vector store taking a file path as input. The file path is passed to the [attach new file](#vector-store-methods) method of the internal [vector store](#vector-store-class). The method returns the status of additional operation.
-
-- **Add Files to Vector Store**: This method adds multiple files to the assistant's internal vector store taking a list of strings, each representing a file path, as input. The file paths are passed to the [attach new file](#vector-store-methods) method of the internal [vector store](#vector-store-class). The method returns a boolean indicating is all files were added successfully.
+- **Attach File**: Takes in a list of file path strings and passes the repective file paths to the [attach new file](#vector-store-methods) method of the assistant's internal [vector store](#vector-store-class). Returns False if any of the files were not added successfully or if no file paths were provided.
 
 - **Update Tool Set**: This method updates the tool set used by the assistant. It takes a list of tool dictionaries. It updates the assistant instance and tool set. The method returns a boolean indicating whether the update was successful or not.
 
-- **Send Message**: This is an *asynchronous* method that creates a [message object](https://platform.openai.com/docs/api-reference/messages/object) and inserts it into the assistant's thread. The message object is then returned. [Attachments](https://platform.openai.com/docs/api-reference/messages/createMessage#messages-createmessage-attachments) can be added to a message and will inserted into the thread along side the message's content.
+- **Send Message**: This is an *asynchronous* method that creates a [message object](https://platform.openai.com/docs/api-reference/messages/object) and inserts it into the assistant's thread. The message object is then returned.
 
 - **Get Message History**: This is an *asynchronous* method that takes in a `history_length` parameter and returns the entire chat log up to a maximum of `history_length` messages. This method also handles the assistant's attempts at calling [developer defined functions](https://platform.openai.com/docs/assistants/tools/function-calling/function-calling-beta). This method prints a loading message to the console while it waits for the assistant to finish its response. When `debugMode` is False or None, the method returns a list of dictionaries of the following format.
 
         message = {
             "role": "user" or "assistant",
-            "content": "Message content",
+            "text": "the message's text content",
         }
 
 - **Get Attributes**: This method returns a dictionary containing the assistant's attributes. The dictionary contains the assistant's ID, creation time (*in seconds*), name, instructions, tool set, user defined functions, model, model parameters, vector store, and thread id.
