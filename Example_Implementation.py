@@ -40,7 +40,7 @@ async def Main():
     )
 
     # Attach a file to the assistant
-    asssistant.Attach_File(
+    asssistant.Attach_Files(
         # Pass in a list of file paths || REQUIRED
         file_paths=["YOUR_FILE_PATH"]
     )
