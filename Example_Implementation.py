@@ -6,9 +6,8 @@ from openai import OpenAI
 # Create the main function
 def Main():
     # Create an instance of the OpenAI class
-    import Local_Keys
     client = OpenAI(
-        api_key=Local_Keys.Here()
+        api_key="YOUR_API_KEY"
     )
 
     # Create an instance of the Assistant class
