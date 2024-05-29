@@ -4,7 +4,7 @@ import asyncio
 from openai import OpenAI
 
 # Create the main function
-async def Main():
+def Main():
     # Create an instance of the OpenAI class
     import Local_Keys
     client = OpenAI(
@@ -54,16 +54,16 @@ async def Main():
         if user_input == "exit":
             break
         else:
-            # Send the user input to the assistant | This method is asynchronous and must be awaited
-            await asssistant.Send_Message(
+            # Send the user input to the assistant
+            asssistant.Send_Message(
                 message_content=user_input
             )
 
-        # Get the assistant's response | This method is asynchronous and must be awaited
-        assistant_response = await asssistant.Get_Message_History() # Returns a list of both the assistant's and user's messages
+        # Get the assistant's response
+        assistant_response = asssistant.Get_Latest_Response()
 
         # Print the assistant's response
-        print("\nAssistant: " + assistant_response[-1]["text"] + "\n") # Reverse index to get the assistant's response
+        print("\nAssistant: " + assistant_response["content"]["value"] + "\n")
     # Loop End
 
     # Delete the assistant once all activities have been completed
@@ -73,4 +73,5 @@ async def Main():
 # Main End
 
 # Run the main function
-asyncio.run(Main())
+if __name__ == "__main__":
+    Main()
