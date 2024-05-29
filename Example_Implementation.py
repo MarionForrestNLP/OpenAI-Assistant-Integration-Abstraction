@@ -38,7 +38,7 @@ def Main():
         max_completion_tokens=None
     )
 
-    # Attach a file to the assistant
+    # Attach a file to the assistant. This is an optional example, you can delete this line of code if you want.
     asssistant.Attach_Files(
         # Pass in a list of file paths || REQUIRED
         file_paths=["YOUR_FILE_PATH"]
