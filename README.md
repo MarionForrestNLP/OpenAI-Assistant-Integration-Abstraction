@@ -6,7 +6,7 @@ This project was initialized to make the [OpenAI](https://platform.openai.com/do
 
 ## Planned Features and Changes
 
-- Rewrite the [Get_Message_History](#assistant-methods) to be more efficient.
+- Implement streaming for the [Get_Message_History](#assistant-methods) method.
 
 ## Table of Contents
 
@@ -42,30 +42,40 @@ The constructor takes in the OpenAI client, the name of the assistant as a strin
         "top_p": 1.0
     }
 
-The max prompt tokens and max completion tokens parameters are bot integers and will both be set to 5,000 by default.
+The max prompt tokens and max completion tokens parameters are bot integers and will both be set to 10,000 by default. OpenAI recommends using 20,000 tokens.
 
 ### Assistant Methods
 
-There are several methods designed to uphold the internal integrity of the class and are not intended to be called directly into your implementation. Those methods are not be listed below. The following are methods designed to be used in your implementations of this class.
+- **Attach File**: Takes in a list of file path strings and passes the repective file paths to the [attach new file](#vector-store-methods) method of the assistant's internal [vector store](#vector-store-class). Returns False if any of the files were not added successfully or if no file paths were provided.
 
 - **Delete Assistant**: This method deletes the assistant instance. It gets the assistant ID, [deletes the assistant](https://platform.openai.com/docs/api-reference/assistants/deleteAssistant) using the OpenAI client, and then updates the assistant instance property to None. The method returns a boolean indicating whether the deletion was successful or not.
 
-- **Attach File**: Takes in a list of file path strings and passes the repective file paths to the [attach new file](#vector-store-methods) method of the assistant's internal [vector store](#vector-store-class). Returns False if any of the files were not added successfully or if no file paths were provided.
-
-- **Update Tool Set**: This method updates the tool set used by the assistant. It takes a list of tool dictionaries. It updates the assistant instance and tool set. The method returns a boolean indicating whether the update was successful or not.
-
-- **Send Message**: This is an *asynchronous* method that creates a [message object](https://platform.openai.com/docs/api-reference/messages/object) and inserts it into the assistant's thread. The message object is then returned.
-
-- **Get Message History**: This is an *asynchronous* method that takes in a `history_length` parameter and returns the entire chat log up to a maximum of `history_length` messages. This method also handles the assistant's attempts at calling [developer defined functions](https://platform.openai.com/docs/assistants/tools/function-calling/function-calling-beta). This method prints a loading message to the console while it waits for the assistant to finish its response. When `debugMode` is False or None, the method returns a list of dictionaries of the following format.
-
-        message = {
-            "role": "user" or "assistant",
-            "text": "the message's text content",
-        }
-
 - **Get Attributes**: This method returns a dictionary containing the assistant's attributes. The dictionary contains the assistant's ID, creation time (*in seconds*), name, instructions, tool set, user defined functions, model, model parameters, vector store, and thread id.
 
+- **Get Latest Response**: This method returns the assistant's response to the most recently recieved message from the user.
+
+- **Get Message History**: This method takes in a `history_length` parameter and returns the entire chat log up to a maximum of `history_length` messages. When `debug_mode` is True, a list of [Message](https://platform.openai.com/docs/api-reference/messages/object) objects is returned. When `debug_mode` is False or None, the method returns a list of dictionaries of the following format:
+
+        message = {
+            "creation_time": 1698983503,
+            "role": "assistant",
+            "contentent": {
+                "type": "text",
+                "value": "Hello there! How can I help you today?"
+            }
+        }
+
+  - Creation Time (int): A Unix timestamp (in seconds)
+  - Role (str): "user" or "assistant"
+  - Content (dict): The message's text content
+    - Type (str): "text" or "image_file"
+    - Value (str): The message's text content or the [file_id](https://platform.openai.com/docs/api-reference/files/object#files/object-id) of the image file
+
 - **Get Vector Store**: This method returns the assistant's internal [vector store](#vector-store-class).
+
+- **Send Message**: This method creates a [message object](https://platform.openai.com/docs/api-reference/messages/object) and inserts it into the assistant's thread. The message object is then returned.
+
+- **Update Tool Set**: This method updates the tool set used by the assistant. It takes a list of tool dictionaries. It updates the assistant instance and tool set. The method returns a boolean indicating whether the update was successful or not.
 
 ## Vector Store Class
 
@@ -84,18 +94,18 @@ The constructor takes in the OpenAI client, the name of the vector store, and th
 
 ### Vector Store Methods
 
-- **Retrieve Vector Store**: This method allows you to replace the vector store created at initialization with a pre-existing vector store. It takes in the ID  of the vector store you want to retrieve. This method deletes the old instance of the the vector store and returns the retrieved instance.
-
-- **Delete Vector Store**: This method deletes the vector store instance. It gets the vector store ID, [deletes the vector store](https://platform.openai.com/docs/api-reference/vector-stores/delete) using the OpenAI client, and then updates the vector store instance property to None. The method returns a boolean indicating whether the deletion was successful or not.
-
-- **Modify Vector Store**: This method modifies the vector store instance. It takes in string representing the new name of the vector store and an integer representing the new number of days until the vector store expires. It then updates the vector store instance property with the new name and days until expiration. The method returns the modified instance.
-
-- **Get Attributes**: This method returns a dictionary containing the vector store's attributes. The dictionary contains the vector store's ID, name, status, creation time (*in seconds*), days until expiration, file count, memory usage (*in bytes*).
-
 - **Attach Existing File**: This method attaches an existing file to the vector store. It takes in the ID of the file you want to attach. It then creates a [vector store file object](https://platform.openai.com/docs/api-reference/vector-stores-files/file-object) using the OpenAI client to attach the file to the vector store. The method returns the status of the file attachment.
 
 - **Attach New File**: This method attaches a new file to the vector store. It takes in the path of the file you want to attach and the purpose of the file as an optional parameter (defaults to "assistant"). It then creates a [file object](https://platform.openai.com/docs/api-reference/files/object) using the OpenAI client then passes the file's id to the `Attach_Existing_File` method to attach the file to the vector store. The method returns the status of the file attachment.
   - Valid purposes are "assistants", "vision", "fine-tuning", and "batch".
+
+- **Delete Vector Store**: This method deletes the vector store instance. It gets the vector store ID, [deletes the vector store](https://platform.openai.com/docs/api-reference/vector-stores/delete) using the OpenAI client, and then updates the vector store instance property to None. The method returns a boolean indicating whether the deletion was successful or not.
+
+- **Get Attributes**: This method returns a dictionary containing the vector store's attributes. The dictionary contains the vector store's ID, name, status, creation time (*in seconds*), days until expiration, file count, memory usage (*in bytes*).
+
+- **Modify Vector Store**: This method modifies the vector store instance. It takes in string representing the new name of the vector store and an integer representing the new number of days until the vector store expires. It then updates the vector store instance property with the new name and days until expiration. The method returns the modified instance.
+
+- **Retrieve Vector Store**: This method allows you to replace the vector store created at initialization with a pre-existing vector store. It takes in the ID  of the vector store you want to retrieve. This method deletes the old instance of the the vector store and returns the retrieved instance.
 
 ## User Defined Functions
 

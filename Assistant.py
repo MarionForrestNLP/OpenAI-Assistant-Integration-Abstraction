@@ -3,8 +3,11 @@ import json
 import os
 import time
 import Vector_Storage
-from openai import OpenAI
+from openai import AssistantEventHandler, OpenAI
 from openai.types import beta as Beta_Types
+from openai.types.beta.threads import Message, Text, TextDelta
+from typing import Callable
+from typing_extensions import override
 
 # Constants
 DEFAULT_MODEL = "gpt-3.5-turbo-0125"
@@ -39,8 +42,7 @@ class Assistant:
 
     Methods
         Delete_Assistant() -> bool
-        Add_File_To_Vector_Store(file_path:str) -> str
-        Add_Files_To_Vector_Store(file_paths:list[str]) -> bool
+        Attach_Files(file_paths:list[str]) -> bool
         Update_Tool_Set(tool_set:list) -> bool
         Send_Message(message_content:str, message_attachments:list=[]) -> dict
         Get_Message_History() -> list
@@ -69,7 +71,7 @@ class Assistant:
             max_prompt_tokens:int|None=None, max_completion_tokens:int|None=None
         ):
         """
-        Constructor for the Assistant class.
+        This class is designed to abstract interactions with the OpenAI Assistant.
         
         Parameters
             client (OpenAI): The OpenAI client object
@@ -209,7 +211,7 @@ class Assistant:
         return deletion_object.deleted
     # Function End
 
-    def Attach_File(self, file_paths:list[str]|None) -> bool:
+    def Attach_Files(self, file_paths:list[str]|None) -> bool:
         """
         Takes in a list of file path strings and adds the repective files to the assistant's internal vector store.
         Returns False if any of the files were not added successfully or if no file paths were provided.
@@ -277,9 +279,8 @@ class Assistant:
             # return status
             return False
     # Function End
-
     
-    async def Send_Message(self, message_content:str) -> dict:
+    def Send_Message(self, message_content:str) -> dict:
         """
         Adds a new message to the assistant's thread
         and returns the new message object.
@@ -330,15 +331,139 @@ class Assistant:
         print("\b"*len(outString) + " "*len(outString) + "\b"*len(outString), end="")
     # Function End
 
-    async def Get_Message_History(self, history_length:int|None=None, debugMode:bool|None=None) -> list:
+    def __Stream_To_Console(self, content:str, position:int) -> None:
         """
-        Gets the assistant's message history
-        and returns a list of message objects.
+        Default message streaming function
+        """
+
+        if position <= -1:
+            print(f"{self.name}: {content}", end="", flush=True)
+        elif position == 0:
+            print(content, end="", flush=True)
+        elif position >= 1:
+            print("", end="\n", flush=True)
+    # Function End
+
+    def __Get_Run_Stream(self, print_stream:Callable|None) -> None:
+        """
+        Under Development, DO NOT USE.
+        """
+
+        # Handle defaults
+        if print_stream is None:
+            print_stream = self.__Stream_To_Console
+
+        # Create an event handler class
+        class EventHandler(AssistantEventHandler):
+            @override
+            def on_text_created(self, text:Text) -> None:
+                print_stream(content=f"\nAssistant: ", position=-1)
+
+            @override
+            def on_text_delta(self, delta: TextDelta, snapshot: Text) -> None:
+                print_stream(content=delta.value, position=0)
+
+            @override
+            def on_text_done(self, text: Text) -> None:
+                print_stream(content="", position=1)
+
+            @override
+            def on_message_done(self, message: Message) -> None:
+                return message.content[0].text.value
+        # Class End
+
+        # Run stream
+        with self.client.beta.threads.runs.stream(
+            thread_id=self.thread.id,
+            assistant_id=self.intance.id,
+            event_handler=EventHandler(),
+        ) as stream:
+            stream.until_done()
+    # Function End
+
+    def __Process_Run(self) -> bool:
+        """
+        Processes messages sent to the assistant. Returns a bool indicating if processing was successful.
+        """
+
+        # Create a new run instance
+        run_instance = self.client.beta.threads.runs.create(
+            thread_id=self.thread.id,
+            assistant_id=self.intance.id,
+            max_prompt_tokens=self.max_prompt_tokens,
+            max_completion_tokens=self.max_completion_tokens
+        )
+
+        # Check run status
+        run_status = run_instance.status
+        while run_status != "completed":
+            # Tool call case
+            if run_status == "requires_action":
+                # Get tool call details
+                toolCallDetails = run_instance.required_action.submit_tool_outputs.tool_calls
+                
+                # Call functions
+                self.__Handle_Function_Calls(
+                    client=self.client,
+                    runInstance=run_instance,
+                    functionObjectList=toolCallDetails
+                )
+
+            # Failure case
+            elif run_status == "failed":
+                return False
+            
+            # Waiting case
+            else:
+                # Implement waiting case
+                pass
+
+            # Get next run status
+            run_status = self.client.beta.threads.runs.retrieve(
+                thread_id=self.thread.id,
+                run_id=run_instance.id
+            ).status
+        # Loop End
+
+        # Completion case
+        return True
+    # Function End
+
+    def __Format_Message(self, message:Message, contentIndex:int) -> dict:
+        # Variable initialization
+        content_type = message.content[contentIndex].type
+        content_value = None
+
+        # Determine content value
+        if content_type == "text":
+            content_value = message.content[contentIndex].text.value
+        elif content_type == "image_file":
+            content_value = message.content[contentIndex].image_file.file_id
+
+        # Create formatted message dictionary
+        formattedMessage = {
+            "creation_time": message.created_at,
+            "role": message.role,
+            "content": {
+                "type": content_type,
+                "value": content_value
+            }
+        }
+
+        # Return formatted message
+        return formattedMessage
+    # Function End
+
+    def Get_Message_History(self, history_length:int|None=None, debug_mode:bool|None=None) -> list[dict] | list[Message]:
+        """
+        Returns the entire history of messages from both the assistant and user up to a maximum of history_length messages.
+        If debug_mode is set to True, the function will return a list of message objects.
+        If debug_mode is set to False, the function will return a list of dictionaries containing limited information from message objects.
 
         Parameters
             history_length (int): The number of messages to retrieve.
                 Defaults to 25.
-            debugMode (bool): A flag to return unformatted messages.
+            debug_mode (bool): A flag to return unformatted messages.
                 Defaults to False.
 
         Returns
@@ -346,10 +471,6 @@ class Assistant:
                 or
             message_History_F (list[dict]): A list of dictionaries containing limited information from message objects.
         """
-
-        # Variable initialization
-        runFailed = False
-
         # Handle defaults
         if history_length is None:
             history_length = DEFAULT_MESSAGE_HISTORY_LENGTH
@@ -357,77 +478,80 @@ class Assistant:
             # This insures that at least 1 assistant and 1 user message are returned.
             # Sometimes the assistant will send 2 messages in a row.
             history_length = 3
-        if debugMode is None:
-            debugMode = False
+        if debug_mode is None:
+            debug_mode = False
 
-        # get the current run instance of the thread
-        local_Run = self.client.beta.threads.runs.create(
-            thread_id=self.thread.id,
-            assistant_id=self.intance.id,
-            max_prompt_tokens=self.max_prompt_tokens,
-            max_completion_tokens=self.max_completion_tokens
-        )
+        # Process user messages, then check run status
+        runStatus = self.__Process_Run()
 
-        # check if run is complete
-        while local_Run.status != "completed":
-            local_Run = self.client.beta.threads.runs.retrieve(
+        # Failure case
+        if runStatus is False:
+            return [
+                {
+                    "role": "assistant",
+                    "text": "Failed to generate a response."
+                }
+            ]
+        
+        # Success case
+        else:
+            # get history
+            message_History = self.client.beta.threads.messages.list(
                 thread_id=self.thread.id,
-                run_id=local_Run.id
-            )
+                limit=history_length,
+                order="asc"
+            ).data
 
-            # check for pending functions
-            if local_Run.status == "requires_action":
-                pending_Functions = local_Run.required_action.submit_tool_outputs.tool_calls
+            # Debug case
+            if debug_mode is True:
+                # return unformatted history
+                return message_History
+            
+            # Normal case
+            else:
+                # format history
+                message_History_F = []
+                for message in message_History:
+                    for content_index in range(len(message.content)):
+                        # Create formatted message
+                        formatted_message = self.__Format_Message(
+                            message=message,
+                            contentIndex=content_index
+                        )
 
-                # handle function calls
-                self.__Handle_Function_Calls(self.client, local_Run, pending_Functions)
-            elif local_Run.status == 'failed':
-                runFailed = True
-                break
-            elif local_Run.status == 'in_progress' or local_Run.status == 'pending' or local_Run.status == 'incomplete':
-                self.__Print_Loading_Message()
-                continue
-        # Loop End
+                        # Append message to history
+                        message_History_F.append(formatted_message)
+                    # Loop End
+                # Loop End
+
+                # return formatted history
+                return message_History_F
+    # Function End
+
+    def Get_Latest_Response(self, debug_mode:bool|None=None) -> dict|Message:
+        """
+        Returns the assistant's response to the most recently sent message.
+
+        Parameters
+            debug_mode (bool): A flag to return unformatted messages.
+                Defaults to False.
+
+        Returns
+            response (str): The assistant's response to the most recently sent message.
+        """
+        if debug_mode is None:
+            debug_mode = False
 
         # get history
-        message_History = self.client.beta.threads.messages.list(
-            thread_id=self.thread.id,
-            limit=history_length,
-            order="asc"
-        ).data
+        history = self.Get_Message_History(
+            debug_mode=debug_mode
+        )
 
-        if debugMode is True:
-            if runFailed:
-                return "Run Failed"
-                        
-            # return unformatted history
-            return message_History
-        else:
-            # format history
-            message_History_F = []
-            for message in message_History:
-                for message_index in range(len(message.content)):
-                    # Create formatted message dictionary
-                    formatted_message = {
-                        "role": message.role,
-                        "text": message.content[message_index].text.value,
-                        # "citation": message.content[message_index].text.annotations,
-                        # "attachments": message.attachments[message_index].file_id if len(message.attachments) > 0 else None,
-                    }
+        # Get message
+        response = history[-1]
 
-                    # Append message to history
-                    message_History_F.append(formatted_message)
-                # Loop End
-            # Loop End
-
-            if runFailed:
-                message_History_F.append({
-                    "role": "assistant",
-                    "text": "Run Failed"
-                })
-
-            # return formatted history
-            return message_History_F
+        # return message
+        return response
     # Function End
 
     def __Remove_Escape_Characters(self, message:str) -> str:
@@ -451,7 +575,7 @@ class Assistant:
         return cleanedMessage
     # Function End
 
-    def __Handle_Function_Calls(self, client, runInstance, functionObjectList) -> None:
+    def __Handle_Function_Calls(self, client:OpenAI, runInstance, functionObjectList:list) -> None:
         # Variable initialization
         toolOutputs = []
 
@@ -550,5 +674,6 @@ class Assistant:
 
         # Return the vector store
         return self.vector_store
+        
     # Function End
 # Class End
