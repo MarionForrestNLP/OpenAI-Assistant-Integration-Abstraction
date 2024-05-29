@@ -1,6 +1,5 @@
 # Import the Assistant Class and relevant libraries
 import Assistant
-import asyncio
 from openai import OpenAI
 
 # Create the main function
