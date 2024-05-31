@@ -26,8 +26,8 @@ def Main():
         # Pass in a dictionary of user defined functions || OPTIONAL
         function_dictionary={},
         
-        # Pass in the model name. If left empty, "gpt-3.5-turbo-0125" will be used || OPTIONAL
-        model="gpt-3.5-turbo-0125",
+        # Pass in the model name. If left empty, defaults to "gpt-3.5-turbo-0125" || OPTIONAL
+        model=None,
         
         # Pass in a dictionary of model parameters. If left empty, default parameters of {temperature: 1.0, top_p: 1.0} will be used || OPTIONAL
         model_parameters={},

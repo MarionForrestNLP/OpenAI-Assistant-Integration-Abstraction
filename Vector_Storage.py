@@ -198,13 +198,13 @@ class Vector_Storage:
 
     def Attach_Existing_File(self, file_id:str) -> str:
         """
-        Attaches a file with the given id to the vector store. Returns the file's status.
+        Attaches a file with the given id to the vector store. Returns the file's ID.
 
         Parameters:
             file_id (str): The id of the file to attach to the vector store.
 
         Returns:
-            vector_store_file.status (str): The status of the file attachment.
+            vector_store_file.id (str): The ID of the file attachment.
         """
 
         # Attach the file
@@ -213,13 +213,13 @@ class Vector_Storage:
             file_id=file_id
         )
 
-        # Return the attachment status
-        return vector_store_file.status
+        # Return the file's ID
+        return vector_store_file.id
     # End of Attach_Existing_File
 
     def Attach_New_File(self, file_path:str, purpose:str|None=None) -> str:
         """
-        Attaches a file with the given path to the vector store. Returns the file's status.
+        Attaches a file with the given path to the vector store. Returns the file's ID.
 
         Parameters:
             file_path (str): The path of the file to attach to the vector store.
@@ -227,11 +227,11 @@ class Vector_Storage:
                 Defaults to "assistant".
 
         Returns:
-            attachment_status (str): The status of the file attachment.
+            file_ID (str): The ID of the file attachment.
         """
 
         # Handle Defaults
-        if purpose is None or purpose not in FILE_PURPOSE_ENUM:
+        if (purpose is None) or (purpose not in FILE_PURPOSE_ENUM):
             purpose = DEFAULT_FILE_PURPOSE
 
         # Upload the file
@@ -241,9 +241,9 @@ class Vector_Storage:
         )
 
         # Attach the file
-        attachment_status = self.Attach_Existing_File(uploaded_file.id)
+        file_ID = self.Attach_Existing_File(uploaded_file.id)
 
         # Return the attachment status
-        return attachment_status
+        return file_ID
     # End of Attach_New_File
 # End of Vector_Storage Class
