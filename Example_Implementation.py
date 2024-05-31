@@ -54,7 +54,14 @@ def Main():
         else:
             # Send the user input to the assistant
             asssistant.Send_Message(
-                message_content=user_input
+                # Pass in a string representing the message's content || REQUIRED
+                message_content=user_input,
+
+                # Attach a file by passing the path of the file as a string || OPTIONAL
+                attachment_path=None,
+
+                # Attach a file by passing the file ID as a string || OPTIONAL
+                attachment_file_id=None
             )
 
         # Get the assistant's response
