@@ -1,15 +1,21 @@
 # Import the Assistant Class and relevant libraries
+from typing_extensions import override
 import Assistant
 from openai import OpenAI
+import json
+
+# This function is used for demostration purposes. You can ignore it.
+def Get_Current_Temperature(notation:str) -> str:
+    return "72 Degrees " + notation
 
 # Create the main function
 def Main():
     # Create an instance of the OpenAI class
     client = OpenAI(
-        api_key="YOUR_API_KEY"
+        api_key="Your Key Here",
     )
 
-    # Create an instance of the Assistant class
+    print("Creating assistant...") # Create an instance of the Assistant class
     asssistant = Assistant.Assistant(
         # Pass in the OpenAI client || REQUIRED
         client=client,
@@ -21,10 +27,27 @@ def Main():
         instruction_prompt="You are a simple chat bot",
         
         # Pass in a list of tools. If left empty, the "file_search" tool is automatically added || OPTIONAL
-        tool_set=[],
-        
-        # Pass in a dictionary of user defined functions || OPTIONAL
-        function_dictionary={},
+        # The following is an example of how to add a user defined function to the tool set. Review the README for more information.
+        tool_set=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "Get_Current_Temperature",
+                    "description": "This function returns the current temperature in the given notation.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "notation": {
+                                "type": "string",
+                                "enum": ["Celsius", "Fahrenheit"],
+                                "description": "The temperature unit to use. Ask the user to provide the notation."
+                            }
+                        },
+                        "required": ["notation"]                    
+                    }
+                }
+            }
+        ],
         
         # Pass in the model name. If left empty, defaults to "gpt-3.5-turbo-0125" || OPTIONAL
         model=None,
@@ -37,16 +60,46 @@ def Main():
         max_completion_tokens=None
     )
 
-    # Attach a file to the assistant. This is an optional example, you can delete this line of code if you want.
+    print("Attaching files...") # Attach a file to the assistant. This is an optional example, you can delete this line of code if you want.
     asssistant.Attach_Files(
         # Pass in a list of file paths || REQUIRED
-        file_paths=["YOUR_FILE_PATH"]
+        file_paths=[]
     )
 
-    # Converate with the assistant
+    # Create a custom event handler to stream the assistant's response to your liking. This is an optional example, you can delete this code block if you want.
+    class Custom_Event_Handler(Assistant.Assistant_Event_Handler):
+        @override
+        def on_text_created(self, text: Assistant.Text) -> None:
+            print(f"\n{asssistant.name}: ", end="", flush=True)
+
+        @override
+        def Handle_Required_Actions(self, data: Assistant.Run, run_id: str) -> None:
+            """
+            Use the following function to add your own custom actions.
+            Review the "user defined functions" section of the README for more information.
+            """
+
+            toolOutputs = []
+
+            for tool in data.required_action.submit_tool_outputs.tool_calls:
+                if tool.function.name == "Get_Current_Temperature":
+                    argumentDictionary = json.loads(tool.function.arguments)
+
+                    toolOutputs.append({
+                        "tool_call_id": tool.id, "output": Get_Current_Temperature(
+                            notation=argumentDictionary["notation"]
+                        )
+                    })
+            # Loop End
+
+            self.Submit_Tool_Outputs(tool_outputs=toolOutputs, run_id=run_id)
+        # Function End
+    # Class End
+
+    # Conversate with the assistant
     while True:
         # Take in user input
-        user_input = input("User: ")
+        user_input = input("\nUser: ")
 
         # Escape clause
         if user_input == "exit":
@@ -64,14 +117,14 @@ def Main():
                 attachment_file_id=None
             )
 
-        # Get the assistant's response
-        assistant_response = asssistant.Get_Latest_Response()
-
-        # Print the assistant's response
-        print("\nAssistant: " + assistant_response["content"]["value"] + "\n")
+        # Stream the assistant's response
+        asssistant.Get_Response(
+            # Pass in a custom event handler || OPTIONAL
+            event_handler=Custom_Event_Handler
+        )
     # Loop End
 
-    # Delete the assistant once all activities have been completed
+    print("Closing connection to assistant...") # Delete the assistant once all activities have been completed
     asssistant.Delete_Assistant(
         clear_vector_store=True # I recommend setting this parameter to True to save on storage costs
     )

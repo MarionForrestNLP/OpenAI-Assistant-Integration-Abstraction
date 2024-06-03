@@ -6,7 +6,7 @@ This project was initialized to make the [OpenAI](https://platform.openai.com/do
 
 ## Planned Features and Changes
 
-- Implement streaming for the [Get_Message_History](#assistant-methods) method.
+- Implement code interpreter tool.
 
 ## Table of Contents
 
@@ -24,7 +24,6 @@ This class is designed to abstract interactions with the OpenAI [Assistant](http
 - **Name**: The name of the assistant as is displayed on OpenAI assistants dashboard.
 - **Instructions**: The context prompt used to set up the assistant's initial behavior. Be concise and clear in your instructions to the assistant. This prompt is included in the **prompt tokens** count, thus it is recommended you keep it as short as possible.
 - **Tool Set**: The list of tools used by the assistant. file search, code interpreter, and function calling.
-- **User Defined Functions**: The dictionary containing information about user defined functions. How this dictionary is used is explained under [User Defined Functions](#user-defined-functions).
 - **Model**: The OpenAI AI model utilized by the assistant. gpt4, 3.5, etc.
 - **Model Parameters**: The dictionary containing the assistant's model response parameters. Currently includes temperature and top P.
 - **Max Prompt Tokens**: The maximum number of tokens allowed in a prompt by a user.
@@ -52,24 +51,7 @@ The max prompt tokens and max completion tokens parameters are bot integers and 
 
 - **Get Attributes**: This method returns a dictionary containing the assistant's attributes. The dictionary contains the assistant's ID, creation time (*in seconds*), name, instructions, tool set, user defined functions, model, model parameters, vector store, and thread id.
 
-- **Get Latest Response**: This method returns the assistant's response to the most recently recieved message from the user.
-
-- **Get Message History**: This method takes in a `history_length` parameter and returns the entire chat log up to a maximum of `history_length` messages. When `debug_mode` is True, a list of [Message](https://platform.openai.com/docs/api-reference/messages/object) objects is returned. When `debug_mode` is False or None, the method returns a list of dictionaries of the following format:
-
-        message = {
-            "creation_time": 1698983503,
-            "role": "assistant",
-            "contentent": {
-                "type": "text",
-                "value": "Hello there! How can I help you today?"
-            }
-        }
-
-  - Creation Time (int): A Unix timestamp (in seconds)
-  - Role (str): "user" or "assistant"
-  - Content (dict): The message's text content
-    - Type (str): "text" or "image_file"
-    - Value (str): The message's text content or the [file_id](https://platform.openai.com/docs/api-reference/files/object#files/object-id) of the image file
+- **Get Response**: This method takes in an [Assistant Event Handler](#assistant-event-handler) object and streams the assistant's response. By default it will stream the assistant's response to the console, but you can override the [methods](#assistant-event-handler-methods) to stream to response to your liking.
 
 - **Get Vector Store**: This method returns the assistant's internal [vector store](#vector-store-class).
 
@@ -77,16 +59,38 @@ The max prompt tokens and max completion tokens parameters are bot integers and 
 
 - **Update Tool Set**: This method updates the tool set used by the assistant. It takes a list of tool dictionaries. It updates the assistant instance and tool set. The method returns a boolean indicating whether the update was successful or not.
 
+## Assistant Event Handler
+
+This class is designed to make streaming possible for this implementation of the OpenAI assistant. It is used to handle the events that are streamed from the assistant.
+
+### Assistant Event Handler Properties
+
+- **Client**: The OpenAI connection intance used to access the assistant and other APIs.
+
+### Assistant Event Handler Constructor
+
+The constructor takes in the OpenAI client and creates an assistant event handler object using the OpenAI client.
+
+### Assistant Event Handler Methods
+
+- **On Event**: Callback that is fired for every Server-Sent-Event
+- **On Text Created**: Callback that is fired when a new text content block is created
+- **On Text Delta**: Callback that is fired when a text content block is updated
+- **On Text Done**: Callback that is fired when a text content block is completed
+- **On Message Done**: Callback that is fired when a message is completed
+- **Handle Required Actions**: See [User Defined Functions](#user-defined-functions) for more information.
+- **Submit Tool Outputs**: This method submits a list of tool output dictionaries to the assistant.
+
 ## Vector Store Class
 
 This class is designed to abstract and simplify interactions with vector stores. The main goal of this class was to remove reducancies within the assistant class.
 
 ### Vector Store Properties
 
-- Client: The Open AI client used to access the vector store and other APIs.
-- Name: A string representing the name of the vector store.
-- Days Until Expiration: An integer representing the number of 24 hour days until the vector store expires.
-- Instance: The vector store object being abstracted.
+- **Client**: The Open AI client used to access the vector store and other APIs.
+- **Name**: A string representing the name of the vector store.
+- **Days Until Expiration**: An integer representing the number of 24 hour days until the vector store expires.
+- **Instance**: The vector store object being abstracted.
 
 ### Vector Store Constructor
 
@@ -109,52 +113,92 @@ The constructor takes in the OpenAI client, the name of the vector store, and th
 
 ## User Defined Functions
 
-The OpenAI assistant supports user defined [function calling](https://platform.openai.com/docs/assistants/tools/function-calling/function-calling-beta), which allows you to describe functions to the assistant and have it intelligently return the functions that need to be called along with their arguments. For this integration of the assistant, there are two steps required to get the assistant to effectively utilize your functions.
+The OpenAI assistant supports user defined [function calling](https://platform.openai.com/docs/assistants/tools/function-calling/function-calling-beta), which allows you to describe functions to the assistant and have it intelligently call the functions. For this integration of the assistant, there are two steps required to get the assistant to effectively utilize your functions.
 
 ### Step 1: Tool Set Definition
 
-Within the tool set list, you must define and describe your function. This definition is [passed to the assistant](https://platform.openai.com/docs/assistants/tools/function-calling/step-1-define-functions) for it to identify when certain functions should be called. It is recommended to be as detailed as possible in the `description` fields. Include when the function should be called, what the function returns, how to use the return, and what to do when the assistant doesn't know all the required parameters.
+Within the [tool_set](#assistant-properties) list, you must define and describe your function. This definition is [passed to the assistant](https://platform.openai.com/docs/assistants/tools/function-calling/step-1-define-functions) for it to identify when certain functions should be called. It is recommended to be as detailed as possible in the `description` fields. Include when the function should be called, what the function returns, how to use the return, and what to do when the assistant doesn't know all the required parameters.
 
-#### Function Tool Example
+#### Tool Set Example
 
+```json
+[
     {
-        "type":"function,
+        "type": "function",
         "function": {
             "name": "Get_Current_Temperature",
-            "description": "Get the current temperature for a specific location",
+            "description": "This function returns a string representing the current temperature in the given notation.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "location": {
-                        "type": "string",
-                        "description": "The city and state, e.g., San Francisco, CA"
-                    },
-                    "unit": {
+                    "notation": {
                         "type": "string",
                         "enum": ["Celsius", "Fahrenheit"],
-                        "description": "The temperature unit to use. Infer this from the user's location."
+                        "description": "The temperature unit to use. If the user does not provide a unit, default to Celsius."
+
                     }
-                }
-            },
-            "required": ["location", "unit"]
+                },
+                "required": ["notation"]
+            }
         }
-    }
+    },
+]
+```
 
-### Step 2: User Defined Function Dictionary
+### Step 2: Add the Function to the Event Handler
 
-Within the constructor, after the tool resources, you must pass in a dictionary that details that format of the call of the function. This is used to within the assistant class to actually call the functions the OpenAI assistant is requesting. Each key:value pair needs to be of the following format. The key should be the name of the function as it appears in the tool set definition. The value is a tuple of 4 elements. Element 1 is a string representing how the funcition's library should be imported. Element 2 is string representing how the function should be called (exlcluding the parentheses). Element 3 is an integer representing the number of parameters the function takes. Element 4 is a string representing what the function returns as a failed case or when given the wrong input (This is passed to the assistant in the event that the function fails to execute).
+Override the `Handle_Required_Actions` method in the [Assistant Event Handler](#assistant-event-handler-methods) class and add the following code block:
 
-#### Function Dictionary Example
+```python
+@override
+def Handle_Required_Actions(self, data: Assistant.Run, run_id: str) -> None:
+    toolOutputs = []
 
-In this example, the library from which our function `Get_Current_Temperature` is imported is `Weather_Functions`. The function is called by `Weather_Functions.Get_Current_Temperature`. Recall that the function takes 2 parameters, `location` and `unit`. And in this case the function returns `None` when the function fails to execute.
+    for tool in data.required_action.submit_tool_outputs.tool_calls:
+        ...
 
-    {
-        "Get_Current_Temperature" : (
-            "Import Weather_Functions",
-            "Weather_Functions.Get_Current_Temperature",
-            2,
-            "None"
-        )
-    }
+    self.Submit_Tool_Outputs(tool_outputs=toolOutputs, run_id=run_id)
+```
+
+Within the for loop add if/else statements to check for the function name and call the function accordingly by inserting the following code.
+
+```python
+@override
+def Handle_Required_Actions(self, data: Assistant.Run, run_id: str) -> None:
+    toolOutputs = []
+
+    for tool in data.required_action.submit_tool_outputs.tool_calls:
+        if tool.function.name == "Get_Current_Temperature":
+            toolOutputs.append({
+                "tool_id": tool.tool_id,
+                "output": Get_Current_Temperature(<ARGUMENTS>)
+            })
+        elif ... :
+            ...
+
+    self.Submit_Tool_Outputs(tool_outputs=toolOutputs, run_id=run_id)
+```
+
+You can get a dicitonary of the `<ARGUMENTS>` for your function by calling `json.loads` on `tool.function.arguments`. From here you can access the arguments by their paramter names.
+
+```Python
+@override
+def Handle_Required_Actions(self, data: Assistant.Run, run_id: str) -> None:
+    toolOutputs = []
+
+    for tool in data.required_action.submit_tool_outputs.tool_calls:
+        if tool.function.name == "Get_Current_Temperature":
+            argumentDictionary = json.loads(tool.function.arguments)
+
+            toolOutputs.append({
+                "tool_call_id": tool.id, "output": Get_Current_Temperature(
+                    notation=argumentDictionary["notation"]
+                )
+            })
+        elif ... :
+            ...
+
+    self.Submit_Tool_Outputs(tool_outputs=toolOutputs, run_id=run_id)
+```
 
 ***More documentation coming soon...***
