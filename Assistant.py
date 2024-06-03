@@ -1,12 +1,12 @@
 # Imports
-import json
 import os
 import time
 import Vector_Storage
 from openai import AssistantEventHandler, OpenAI
 from openai.types import beta as Beta_Types
-from openai.types.beta.threads import Message, Text, TextDelta
-from typing import Callable
+from openai.types.beta import AssistantStreamEvent
+from openai.types.beta.threads import Message, Text, TextDelta, Run
+from openai.types.beta.threads.runs import ToolCall, ToolCallDelta
 from typing_extensions import override
 
 # Constants
@@ -22,8 +22,6 @@ DEFAULT_MODEL_PARAMETERS = {
 # \/ \/ Classes \/ \/
 class Assistant:
     """
-    Assistant Class
-
     This class is designed to abstract interactions with the OpenAI Assistant
 
     Properties
@@ -31,7 +29,6 @@ class Assistant:
         name (str): The name of the assistant
         instructions (str): The assistant's context prompt
         tool_set (list): A list of tool dictionaries
-        user_defined_functions (dict): A dictionary of user defined functions
         model (str): The model to use for the assistant
         model_parameters (dict): The parameters for the model
         max_prompt_tokens (int): The maximum number of prompt tokens
@@ -45,7 +42,7 @@ class Assistant:
         Attach_Files(file_paths:list[str]) -> bool
         Update_Tool_Set(tool_set:list) -> bool
         Send_Message(message_content:str, message_attachments:list=[]) -> dict
-        Get_Message_History() -> list
+        Get_Response(event_handler:AssistantEventHandler) -> None
         Get_Attributes() -> dict
         Get_Vector_Store() -> Vector_Storage.Vector_Storage
     """
@@ -55,7 +52,6 @@ class Assistant:
     name:str|None = ""
     instructions:str|None = ""
     tool_set:list|None = []
-    user_defined_functions:dict|None = {}
     model:str|None = ""
     model_parameters:dict|None = {}
     max_prompt_tokens:int|None = None
@@ -67,7 +63,7 @@ class Assistant:
     # Constructor
     def __init__(
             self, client:OpenAI, assistant_name:str, instruction_prompt:str, tool_set:list|None=None,
-            function_dictionary:dict|None=None, model:str|None=None, model_parameters:dict|None=None,
+            model:str|None=None, model_parameters:dict|None=None,
             max_prompt_tokens:int|None=None, max_completion_tokens:int|None=None
         ):
         """
@@ -78,7 +74,6 @@ class Assistant:
             assistant_name (str): The name of the assistant
             instruction_prompt (str): The assistant's context prompt
             tool_set (list): A list of tool dictionaries. | OPTIONAL
-            function_dictionary (dict): A dictionary of user defined functions. | OPTIONAL
             model (str): The model to use for the assistant. | OPTIONAL | DEFAULT: "gpt-3.5-turbo-0125"
             model_parameters (dict): The parameters for the model. | OPTIONAL | DEFAULT: {temperature: 1.0, top_p: 1.0}
             max_prompt_tokens (int): The maximum number of prompt tokens. | OPTIONAL | DEFAULT: 10000
@@ -90,8 +85,6 @@ class Assistant:
             model_parameters = DEFAULT_MODEL_PARAMETERS
         if model is None:
             model = DEFAULT_MODEL
-        if (function_dictionary is None) or (len(function_dictionary.keys()) == 0):
-            function_dictionary = {}
         if (tool_set is None) or (len(tool_set) == 0):
             tool_set = [
                 {
@@ -111,7 +104,6 @@ class Assistant:
         self.name = assistant_name
         self.instructions = instruction_prompt
         self.tool_set = tool_set
-        self.user_defined_functions = function_dictionary
         self.model = model
         self.model_parameters = model_parameters
         self.max_prompt_tokens = max_prompt_tokens
@@ -377,323 +369,28 @@ class Assistant:
         print("\b"*len(outString) + " "*len(outString) + "\b"*len(outString), end="")
     # Function End
 
-    def __Stream_To_Console(self, content:str, position:int) -> None:
-        """
-        Default message streaming function
-        """
+    def Get_Response(self, event_handler:AssistantEventHandler|None=None) -> None:
+        """ 
+        Streams the assistant's response to the console (or to wherever the event_handler class defines).
 
-        if position <= -1:
-            print(f"{self.name}: {content}", end="", flush=True)
-        elif position == 0:
-            print(content, end="", flush=True)
-        elif position >= 1:
-            print("", end="\n", flush=True)
-    # Function End
+        Parameters
+            event_handler (AssistantEventHandler): The event handler class to use. | OPTIONAL
 
-    def __Get_Run_Stream(self, print_stream:Callable|None=None) -> None:
+        Returns
+            None
         """
-        Under Development, DO NOT USE.
-        """
-
         # Handle defaults
-        if print_stream is None:
-            print_stream = self.__Stream_To_Console
-
-        # Create an event handler class
-        class EventHandler(AssistantEventHandler):
-            @override
-            def on_text_created(self, text:Text) -> None:
-                print_stream(content=f"\nAssistant: ", position=-1)
-
-            @override
-            def on_text_delta(self, delta: TextDelta, snapshot: Text) -> None:
-                print_stream(content=delta.value, position=0)
-
-            @override
-            def on_text_done(self, text: Text) -> None:
-                print_stream(content="", position=1)
-
-            @override
-            def on_message_done(self, message: Message) -> None:
-                return message.content[0].text.value
-        # Class End
+        if event_handler is None:
+            event_handler = Assistant_Event_Handler
 
         # Run stream
         with self.client.beta.threads.runs.stream(
             thread_id=self.thread.id,
             assistant_id=self.intance.id,
-            event_handler=EventHandler(),
+            event_handler=event_handler(client=self.client)
         ) as stream:
             stream.until_done()
     # Function End
-
-    def __Process_Run(self) -> bool:
-        """
-        Processes messages sent to the assistant.
-
-        Parameters
-            None
-
-        Returns
-            (bool): A boolean value indicating if processing was successful.
-        """
-
-        # Create a new run instance
-        run_instance = self.client.beta.threads.runs.create(
-            thread_id=self.thread.id,
-            assistant_id=self.intance.id,
-            max_prompt_tokens=self.max_prompt_tokens,
-            max_completion_tokens=self.max_completion_tokens
-        )
-
-        # Check run status
-        run_status = run_instance.status
-        while run_status != "completed":
-            # Tool call case
-            if run_status == "requires_action":
-                if run_instance.required_action is not None:
-                    # Get tool call details
-                    toolCallDetails = run_instance.required_action.submit_tool_outputs.tool_calls
-                
-                    # Call functions
-                    self.__Handle_Function_Calls(
-                        client=self.client,
-                        runInstance=run_instance,
-                        functionObjectList=toolCallDetails
-                    )
-
-            # Failure case
-            elif run_status in ["failed", "expired", "incomplete", "cancelled"]:
-                return False
-            
-            # Waiting case
-            else:
-                # Implement waiting case
-                self.__Print_Loading_Message()
-                pass
-
-            # Get next run status
-            run_status = self.client.beta.threads.runs.retrieve(
-                thread_id=self.thread.id,
-                run_id=run_instance.id
-            ).status
-        # Loop End
-
-        # Completion case
-        return True
-    # Function End
-
-    def __Format_Message(self, message:Message, contentIndex:int) -> dict:
-        """
-        Formats a message object into a dictionary.
-
-        Parameters
-            message (Message): The message object to format.
-            contentIndex (int): The index of the content in the message object.
-
-        Returns
-            formattedMessage (dict): A dictionary containing the formatted message.
-        """
-        # Variable initialization
-        content_type = message.content[contentIndex].type
-        content_value = None
-
-        # Determine content value
-        if content_type == "text":
-            content_value = message.content[contentIndex].text.value
-        elif content_type == "image_file":
-            content_value = message.content[contentIndex].image_file.file_id
-
-        # Create formatted message dictionary
-        formattedMessage = {
-            "creation_time": message.created_at,
-            "role": message.role,
-            "content": {
-                "type": content_type,
-                "value": content_value
-            }
-        }
-
-        # Return formatted message
-        return formattedMessage
-    # Function End
-
-    def Get_Message_History(self, history_length:int|None=None, debug_mode:bool|None=None) -> list[dict] | list[Message]:
-        """
-        Returns the entire history of messages from both the assistant and user up to a maximum of history_length messages.
-        If debug_mode is set to True, the function will return a list of message objects.
-        If debug_mode is set to False, the function will return a list of dictionaries containing limited information from message objects.
-
-        Parameters
-            history_length (int): The number of messages to retrieve. | OPTIONAL
-            debug_mode (bool): A flag to return unformatted messages. | OPTIONAL
-
-        Returns
-            message_History (list[message]): A list of message objects.
-                or
-            message_History_F (list[dict]): A list of dictionaries containing limited information from message objects.
-        """
-        # Handle defaults
-        if history_length is None:
-            history_length = DEFAULT_MESSAGE_HISTORY_LENGTH
-        elif history_length < 3:
-            # This insures that at least 1 assistant and 1 user message are returned.
-            # Sometimes the assistant will send 2 messages in a row.
-            history_length = 3
-        if debug_mode is None:
-            debug_mode = False
-
-        # Process user messages, then check run status
-        runStatus = self.__Process_Run()
-
-        # Failure case
-        if runStatus is False:
-            return [
-                {
-                    "role": "assistant",
-                    "text": "Failed to generate a response."
-                }
-            ]
-        
-        # Success case
-        else:
-            # get history
-            message_History = self.client.beta.threads.messages.list(
-                thread_id=self.thread.id,
-                limit=history_length,
-                order="asc"
-            ).data
-
-            # Debug case
-            if debug_mode is True:
-                # return unformatted history
-                return message_History
-            
-            # Normal case
-            else:
-                # format history
-                message_History_F = []
-                for message in message_History:
-                    for content_index in range(len(message.content)):
-                        # Create formatted message
-                        formatted_message = self.__Format_Message(
-                            message=message,
-                            contentIndex=content_index
-                        )
-
-                        # Append message to history
-                        message_History_F.append(formatted_message)
-                    # Loop End
-                # Loop End
-
-                # return formatted history
-                return message_History_F
-    # Function End
-
-    def Get_Latest_Response(self, debug_mode:bool|None=None) -> dict|Message:
-        """
-        Returns the assistant's response to the most recently sent message.
-
-        Parameters
-            debug_mode (bool): A flag to return unformatted messages. | OPTIONAL
-
-        Returns
-            response (str): The assistant's response to the most recently sent message.
-        """
-        if debug_mode is None:
-            debug_mode = False
-
-        # get history
-        history = self.Get_Message_History(
-            debug_mode=debug_mode
-        )
-
-        # Get message
-        response = history[-1]
-
-        # return message
-        return response
-    # Function End
-
-    def __Remove_Escape_Characters(self, message:str) -> str:
-        """
-        Attempts to remove escape characters from strings used in exec() and eval() calls
-
-        Parameters
-            message (str): The message to clean
-
-        Returns
-            cleanedMessage (str): The cleaned message
-        """
-
-        # Remove single quotes
-        cleanedMessage = message.replace("'", "")
-    
-        # Remove double quotes
-        cleanedMessage = message.replace('"', "")
-
-        # Return cleaned message
-        return cleanedMessage
-    # Function End
-
-    def __Handle_Function_Calls(self, client:OpenAI, runInstance, functionObjectList:list) -> None:
-        # Variable initialization
-        toolOutputs = []
-
-        # Iterate through each function call
-        for functionObject in functionObjectList:
-            functionObjectDict = dict(functionObject)
-
-            # Get function details
-            functionDetails = dict(functionObjectDict['function'])
-
-            # Get arguments
-            argumentSet = json.loads(functionDetails['arguments'])
-            args = list(argumentSet.values())
-
-            # Call functions
-            for functionName in self.user_defined_functions.keys():
-                if functionName == functionDetails["name"]:
-                    try:
-                        # Import libray
-                        exec(self.user_defined_functions[functionName][0])
-
-                        # Build funciton call
-                        function_call_string = self.user_defined_functions[functionName][1] + "("
-                        for i in range(self.user_defined_functions[functionName][2]):
-                            if i != 0:
-                                function_call_string = function_call_string + ", "
-                            function_call_string = function_call_string + "\'" + self.__Remove_Escape_Characters(args[i]) + "\'"
-                        function_call_string = function_call_string + ")"
-
-                        # Execute function
-                        returnObject = eval(function_call_string)
-                        toolOutputs.append({
-                            "tool_call_id": functionObjectDict["id"],
-                            "output": returnObject
-                        })
-                    except Exception as e:
-                        print(e)
-                        # Return fail case
-                        returnObject = self.user_defined_functions[functionName][3]
-                        toolOutputs.append({
-                            "tool_call_id": functionObjectDict["id"],
-                            "output": returnObject
-                        })
-            # Loop End
-        # Loop End
-
-        # Update run instance
-        updatedRun = client.beta.threads.runs.submit_tool_outputs(
-            thread_id=runInstance.thread_id,
-            run_id=runInstance.id,
-            tool_outputs=toolOutputs
-        )
-
-        # Return None
-        return None
-    # Function End
-
     
     def Get_Attributes(self) -> dict:
         """
@@ -736,4 +433,113 @@ class Assistant:
         # Return the vector store
         return self.vector_store 
     # Function End
+
+class Assistant_Event_Handler(AssistantEventHandler):
+    """
+    A class that handles streaming actions taken by the assistant.
+
+    Properties
+        client (OpenAI)
+
+    Overridden Methods
+        on_event(event: AssistantStreamEvent)
+        on_text_created(text: Text)
+        on_text_delta(delta: TextDelta, snapshot: Text)
+        on_text_done(text: Text)
+        on_message_done(message: Message)
+
+    Methods
+        Handle_Required_Actions(data: Run, run_id: str) -> None
+        Submit_Tool_Outputs(tool_outputs: list[dict], run_id: str) -> None
+    """
+    
+    @override
+    def __init__(self, client:OpenAI) -> None:
+        super().__init__()
+        self.client = client
+    # Function End    
+
+    # \/ \/ Event Handlers \/ \/
+    @override
+    def on_event(self, event:AssistantStreamEvent) -> None:
+        # Identify user function calls
+        if event.event == 'thread.run.requires_action':
+            run_id = event.data.id
+            self.Handle_Required_Actions(event.data, run_id)
+    # Function End
+
+    # \/ \/ Text Generation \/ \/
+    @override
+    def on_text_created(self, text: Text) -> None:
+        print(f"\n", end="", flush=True)
+    # Function End    
+
+    @override
+    def on_text_delta(self, delta: TextDelta, snapshot: Text) -> None:
+        print(delta.value, end="", flush=True)
+    # Function End    
+
+    @override   
+    def on_text_done(self, text: Text) -> None:
+        print("", end="\n", flush=True)
+    # Function End    
+
+    # \/ \/ Tool Handling \/ \/
+    def Handle_Required_Actions(self, data: Run, run_id: str) -> None:
+        """
+        Left Empty for users to override with their custom actions.
+        """
+        return None
+    # Function End
+
+    @override
+    def on_tool_call_created(self, tool_call: ToolCall) -> None:
+        super().on_tool_call_created(tool_call)
+
+    @override
+    def on_tool_call_delta(self, delta: ToolCallDelta, snapshot: ToolCall) -> None:
+        super().on_tool_call_delta(delta, snapshot)
+    
+    def Submit_Tool_Outputs(self, tool_outputs: list[dict], run_id: str) -> None:
+        """
+        [DO NOT OVERRIDE]
+
+        Submits tool outputs to the assistant.
+        Pass in a list of tool outputs to submit them to the assistant.
+
+        Parameters
+            tool_outputs (list[dict]): A list of tool output dictionaries
+            run_id (str): The ID of the run to submit the tool outputs to
+
+        Returns
+            None
+        """
+
+        with self.client.beta.threads.runs.submit_tool_outputs_stream(
+            thread_id=self.current_run.thread_id,
+            run_id=self.current_run.id,
+            tool_outputs=tool_outputs,
+            event_handler=self.__class__(client=self.client)
+        ) as stream:
+            stream.until_done()
+    # Function End
+
+    # \/ \/ Message Handling \/ \/
+    @override
+    def on_message_done(self, message: Message) -> None:
+        # print a citation to any files searched
+        message_content = message.content[0].text
+        annotations = message_content.annotations
+        citations = []
+        for index, annotation in enumerate(annotations):
+            message_content.value = message_content.value.replace(
+                annotation.text, f"[{index}]"
+            )
+            if file_citation := getattr(annotation, "file_citation", None):
+                cited_file = self.client.files.retrieve(file_citation.file_id)
+                citations.append(f"[{index}] {cited_file.filename}")
+
+        if (len(citations) > 0):
+            print(f"{''.join(citations)}", end="\n", flush=True)
+    # Function End    
 # Class End
