@@ -121,7 +121,7 @@ Within the [tool_set](#assistant-properties) list, you must define and describe 
 
 #### Function Tool Example
 
-```python
+```json
 tool_set = [
     {
         "type": "function",
