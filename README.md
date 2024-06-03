@@ -24,7 +24,6 @@ This class is designed to abstract interactions with the OpenAI [Assistant](http
 - **Name**: The name of the assistant as is displayed on OpenAI assistants dashboard.
 - **Instructions**: The context prompt used to set up the assistant's initial behavior. Be concise and clear in your instructions to the assistant. This prompt is included in the **prompt tokens** count, thus it is recommended you keep it as short as possible.
 - **Tool Set**: The list of tools used by the assistant. file search, code interpreter, and function calling.
-- **User Defined Functions**: The dictionary containing information about user defined functions. How this dictionary is used is explained under [User Defined Functions](#user-defined-functions).
 - **Model**: The OpenAI AI model utilized by the assistant. gpt4, 3.5, etc.
 - **Model Parameters**: The dictionary containing the assistant's model response parameters. Currently includes temperature and top P.
 - **Max Prompt Tokens**: The maximum number of tokens allowed in a prompt by a user.
@@ -122,26 +121,28 @@ Within the [tool_set](#assistant-properties) list, you must define and describe 
 
 #### Function Tool Example
 
-```json
-{
-    "type": "function",
-    "function": {
-        "name": "Get_Current_Temperature",
-        "description": "This function returns a string representing the current temperature in the given notation.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "notation": {
-                    "type": "string",
-                    "enum": ["Celsius", "Fahrenheit"],
-                    "description": "The temperature unit to use. If the user does not provide a unit, default to Celsius."
+```python
+tool_set = [
+    {
+        "type": "function",
+        "function": {
+            "name": "Get_Current_Temperature",
+            "description": "This function returns a string representing the current temperature in the given notation.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "notation": {
+                        "type": "string",
+                        "enum": ["Celsius", "Fahrenheit"],
+                        "description": "The temperature unit to use. If the user does not provide a unit, default to Celsius."
 
-                }
-            },
-            "required": ["notation"]
+                    }
+                },
+                "required": ["notation"]
+            }
         }
-    }
-}
+    },
+]
 ```
 
 ### Step 2: Add the Function to the Event Handler
