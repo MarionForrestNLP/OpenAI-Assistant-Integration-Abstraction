@@ -77,12 +77,12 @@ class Assistant:
             client (OpenAI): The OpenAI client object
             assistant_name (str): The name of the assistant
             instruction_prompt (str): The assistant's context prompt
-            tool_set (list): A list of tool dictionaries. Defaults to a list containing just the file_search tool
-            function_dictionary (dict): A dictionary of user defined functions. Defaults to an empty dictionary
-            model (str): The model to use for the assistant. Defaults to "gpt-3.5-turbo-0125"
-            model_parameters (dict): The parameters for the model. Defaults to {temperature: 1.0, top_p: 1.0}
-            max_prompt_tokens (int): The maximum number of prompt tokens. Defaults to 5000
-            max_completion_tokens (int): The maximum number of completion tokens. Defaults to 5000
+            tool_set (list): A list of tool dictionaries. | OPTIONAL
+            function_dictionary (dict): A dictionary of user defined functions. | OPTIONAL
+            model (str): The model to use for the assistant. | OPTIONAL | DEFAULT: "gpt-3.5-turbo-0125"
+            model_parameters (dict): The parameters for the model. | OPTIONAL | DEFAULT: {temperature: 1.0, top_p: 1.0}
+            max_prompt_tokens (int): The maximum number of prompt tokens. | OPTIONAL | DEFAULT: 10000
+            max_completion_tokens (int): The maximum number of completion tokens. | OPTIONAL | DEFAULT: 10000
         """
 
         # Hande defaults
@@ -180,8 +180,7 @@ class Assistant:
         Deletes the assistant. Call this method once you are done using the assistant.
 
         Parameters
-            Clear_Vector_Store (bool): A flag to delete the files attached to the internal vector store.
-                Defaults to False.
+            Clear_Vector_Store (bool): A flag to delete the files attached to the internal vector store. | OPTIONAL
 
         Returns
             deletion_object.status (bool): The status of the operation
@@ -211,10 +210,10 @@ class Assistant:
         return deletion_object.deleted
     # Function End
 
-    def Attach_Files(self, file_paths:list[str]|None) -> bool:
+    def Attach_Files(self, file_paths:list[str]|None) -> list[str]:
         """
         Takes in a list of file path strings and adds the repective files to the assistant's internal vector store.
-        Returns False if any of the files were not added successfully or if no file paths were provided.
+        Returns a list of file IDs.
 
         Parameters
             file_paths (list): A list of file paths strings
@@ -222,33 +221,32 @@ class Assistant:
         Returns
             returnBool (bool): A boolean indicating if all files were added successfully
         """
+        # Variable initialization
+        id_list = []
 
+        # Check if file paths are provided
         if (file_paths is not None) and (len(file_paths) > 0):
             # Iterate through file paths
-            for filePath in file_paths:
+            for file_Path in file_paths:
                 # Check if file path exists
-                if os.path.exists(filePath) == True:
+                if os.path.exists(file_Path) == True:
                     # Send to vector store
-                    attachmentStatus = self.vector_store.Attach_New_File(file_path=filePath)
+                    file_ID = self.vector_store.Attach_New_File(file_path=file_Path)
 
-                    # return status
-                    if attachmentStatus == "completed":
-                        continue
-                    else:
-                        return False
-                
-                # Non-existent file path
+                    # Add file ID to list
+                    id_list.append(file_ID)
+
+                # File path does not exist
                 else:
-                    # return status
-                    return False
+                    id_list.append(None)
             # Loop End
                 
             # return status
-            return True
+            return id_list
         
         # No file paths provided
         else:
-            return False
+            return id_list
     # Function End
 
     def Update_Tool_Set(self, tool_set:list[dict]) -> bool:
@@ -280,23 +278,71 @@ class Assistant:
             return False
     # Function End
     
-    def Send_Message(self, message_content:str) -> dict:
+    def __Create_Message(self, role:str, content:str, attachment_id:str|None=None) -> Message:
+        """
+        Internal Method to create a new message in the assistant's thread.
+
+        Parameters
+            role (str): The role of the originator of the message
+            content (str): The content of the message
+            attachment_id (str): The file ID of the attachment | OPTIONAL
+
+        Returns
+            message (Message): The new message object
+        """
+        return self.client.beta.threads.messages.create(
+            thread_id=self.thread.id,
+            role=role,
+            content=content,
+            attachments=[{
+                "file_id": attachment_id,
+                "tools": [{"type": "file_search"}]
+            }] if attachment_id is not None else None
+        )
+
+    def Send_Message(self, message_content:str, attachment_path:str|None=None, attachment_file_id:str|None=None) -> Message:
         """
         Adds a new message to the assistant's thread
         and returns the new message object.
 
         Parameters
             message_content (str): The text content of the message
+            attachment_path (str): The path to the attachment | OPTIONAL
+            attachment_file_id (str): The file ID of the attachment | OPTIONAL
         Returns
-            message (dict): The new message object
-        """
+            message (Message): The new message object
+        """        
+        # Variable initialization
+        message = None
 
-        # Send message
-        message = self.client.beta.threads.messages.create(
-            thread_id=self.thread.id,
-            role="user",
-            content=message_content
-        )
+        # Attachment ID
+        if attachment_file_id is not None:
+            # Send message
+            message = self.__Create_Message(
+                role="user",
+                content=message_content,
+                attachment_id=attachment_file_id
+            )
+
+        # Attachment Path
+        elif attachment_path is not None:
+            # Attach file to vector store
+            file_ID = self.vector_store.Attach_New_File(file_path=attachment_path)
+
+            # Send message
+            message = self.__Create_Message(
+                role="user",
+                content=message_content,
+                attachment_id=file_ID
+            )
+
+        # No attachment
+        else:
+            # Send message
+            message = self.__Create_Message(
+                role="user",
+                content=message_content
+            )
         
         # Return message
         return message
@@ -344,7 +390,7 @@ class Assistant:
             print("", end="\n", flush=True)
     # Function End
 
-    def __Get_Run_Stream(self, print_stream:Callable|None) -> None:
+    def __Get_Run_Stream(self, print_stream:Callable|None=None) -> None:
         """
         Under Development, DO NOT USE.
         """
@@ -383,7 +429,13 @@ class Assistant:
 
     def __Process_Run(self) -> bool:
         """
-        Processes messages sent to the assistant. Returns a bool indicating if processing was successful.
+        Processes messages sent to the assistant.
+
+        Parameters
+            None
+
+        Returns
+            (bool): A boolean value indicating if processing was successful.
         """
 
         # Create a new run instance
@@ -399,23 +451,25 @@ class Assistant:
         while run_status != "completed":
             # Tool call case
             if run_status == "requires_action":
-                # Get tool call details
-                toolCallDetails = run_instance.required_action.submit_tool_outputs.tool_calls
+                if run_instance.required_action is not None:
+                    # Get tool call details
+                    toolCallDetails = run_instance.required_action.submit_tool_outputs.tool_calls
                 
-                # Call functions
-                self.__Handle_Function_Calls(
-                    client=self.client,
-                    runInstance=run_instance,
-                    functionObjectList=toolCallDetails
-                )
+                    # Call functions
+                    self.__Handle_Function_Calls(
+                        client=self.client,
+                        runInstance=run_instance,
+                        functionObjectList=toolCallDetails
+                    )
 
             # Failure case
-            elif run_status == "failed":
+            elif run_status in ["failed", "expired", "incomplete", "cancelled"]:
                 return False
             
             # Waiting case
             else:
                 # Implement waiting case
+                self.__Print_Loading_Message()
                 pass
 
             # Get next run status
@@ -430,6 +484,16 @@ class Assistant:
     # Function End
 
     def __Format_Message(self, message:Message, contentIndex:int) -> dict:
+        """
+        Formats a message object into a dictionary.
+
+        Parameters
+            message (Message): The message object to format.
+            contentIndex (int): The index of the content in the message object.
+
+        Returns
+            formattedMessage (dict): A dictionary containing the formatted message.
+        """
         # Variable initialization
         content_type = message.content[contentIndex].type
         content_value = None
@@ -461,10 +525,8 @@ class Assistant:
         If debug_mode is set to False, the function will return a list of dictionaries containing limited information from message objects.
 
         Parameters
-            history_length (int): The number of messages to retrieve.
-                Defaults to 25.
-            debug_mode (bool): A flag to return unformatted messages.
-                Defaults to False.
+            history_length (int): The number of messages to retrieve. | OPTIONAL
+            debug_mode (bool): A flag to return unformatted messages. | OPTIONAL
 
         Returns
             message_History (list[message]): A list of message objects.
@@ -533,8 +595,7 @@ class Assistant:
         Returns the assistant's response to the most recently sent message.
 
         Parameters
-            debug_mode (bool): A flag to return unformatted messages.
-                Defaults to False.
+            debug_mode (bool): A flag to return unformatted messages. | OPTIONAL
 
         Returns
             response (str): The assistant's response to the most recently sent message.
@@ -673,7 +734,6 @@ class Assistant:
         """
 
         # Return the vector store
-        return self.vector_store
-        
+        return self.vector_store 
     # Function End
 # Class End

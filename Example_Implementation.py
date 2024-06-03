@@ -26,8 +26,8 @@ def Main():
         # Pass in a dictionary of user defined functions || OPTIONAL
         function_dictionary={},
         
-        # Pass in the model name. If left empty, "gpt-3.5-turbo-0125" will be used || OPTIONAL
-        model="gpt-3.5-turbo-0125",
+        # Pass in the model name. If left empty, defaults to "gpt-3.5-turbo-0125" || OPTIONAL
+        model=None,
         
         # Pass in a dictionary of model parameters. If left empty, default parameters of {temperature: 1.0, top_p: 1.0} will be used || OPTIONAL
         model_parameters={},
@@ -54,7 +54,14 @@ def Main():
         else:
             # Send the user input to the assistant
             asssistant.Send_Message(
-                message_content=user_input
+                # Pass in a string representing the message's content || REQUIRED
+                message_content=user_input,
+
+                # Attach a file by passing the path of the file as a string || OPTIONAL
+                attachment_path=None,
+
+                # Attach a file by passing the file ID as a string || OPTIONAL
+                attachment_file_id=None
             )
 
         # Get the assistant's response
