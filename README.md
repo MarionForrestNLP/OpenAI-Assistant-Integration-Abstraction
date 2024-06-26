@@ -201,4 +201,4 @@ def Handle_Required_Actions(self, data: Assistant.Run, run_id: str) -> None:
     self.Submit_Tool_Outputs(tool_outputs=toolOutputs, run_id=run_id)
 ```
 
-***More documentation coming soon...***
+Your assistant will now be able to call your newly added function. For a live demostration of this functionality run the `Example_Implementation.py` file.
