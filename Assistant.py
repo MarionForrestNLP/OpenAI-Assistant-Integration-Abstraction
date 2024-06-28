@@ -27,7 +27,7 @@ class Vector_Storage:
     This class is used to create, modify, and delete vector stores. It also provides methods to attach files to the vector store.
 
     Properties:
-        client (OpenAI): The OpenAI client object.
+        client (OpenAI): The OpenAI client used to access the OpenAI API.
         name (str): The name of the vector store.
         days_until_expiration (int): The time in terms of 24 hour days that the vector store will be kept alive.
         intance (dict): The vector store instance.
@@ -43,9 +43,13 @@ class Vector_Storage:
 
     # Properties
     client = None
+    """The OpenAI client used to access the OpenAI API."""
     name = ""
+    """The name of the vector store."""
     days_until_expiration = 0
+    """The time in terms of 24 hour days that the vector store will be kept alive."""
     intance = None
+    """The vector store instance."""
 
     # Constructor
     def __init__(self, openai_client:OpenAI, name:str|None=None, life_time:int|None=None):
@@ -282,6 +286,7 @@ class Assistant:
 
     Properties
         client (OpenAI): The OpenAI client instance
+        id (str): The ID of the assistant
         name (str): The name of the assistant
         instructions (str): The assistant's context prompt
         tool_set (list): A list of tool dictionaries
@@ -300,25 +305,38 @@ class Assistant:
         Send_Message(message_content:str, message_attachments:list=[]) -> dict
         Get_Response(event_handler:AssistantEventHandler) -> None
         Get_Attributes() -> dict
-        Get_Vector_Store() -> Vector_Storage.Vector_Storage
+        Get_Vector_Store() -> Vector_Storage
     """
 
     # Properties
     client:OpenAI
-    name:str|None = ""
-    instructions:str|None = ""
-    tool_set:list|None = []
-    model:str|None = ""
-    model_parameters:dict|None = {}
+    """The OpenAI client used to communicate with the OpenAI API."""
+    id:str|None = None
+    """The ID of the assistant."""
+    name:str|None = None
+    """The name of the assistant."""
+    instructions:str|None = None
+    """The assistant's context prompt."""
+    tool_set:list|None = None
+    """A list of tool dictionaries."""
+    model:str|None = None
+    """The model to use for the assistant."""
+    model_parameters:dict|None = None
+    """The parameters for the model."""
     max_prompt_tokens:int|None = None
+    """The maximum number of prompt tokens."""
     max_completion_tokens:int|None = None
+    """The maximum number of completion tokens."""
     vector_store:Vector_Storage
+    """The internal vector store."""
     intance:Beta_Types.Assistant
+    """The OpenAI Assistant instance."""
     thread:Beta_Types.Thread
+    """The Assistant Thread instance."""
 
     # Constructor
     def __init__(
-            self, client:OpenAI, assistant_name:str|None=None, instruction_prompt:str|None=None, tool_set:list|None=None,
+            self, client:OpenAI, assistant_id:str|None=None, assistant_name:str|None=None, instruction_prompt:str|None=None, tool_set:list|None=None,
             model:str|None=None, model_parameters:dict|None=None,
             max_prompt_tokens:int|None=None, max_completion_tokens:int|None=None
         ):
@@ -326,17 +344,18 @@ class Assistant:
         This class is designed to abstract interactions with the OpenAI Assistant.
         
         Parameters
-            client (OpenAI): The OpenAI client object
-            assistant_name (str): The name of the assistant
-            instruction_prompt (str): The assistant's context prompt
-            tool_set (list): A list of tool dictionaries. | OPTIONAL
+        ----------
+            client (OpenAI): The OpenAI client used to communicate with the OpenAI API. | REQUIRED
+            assistant_id (str): The id of the assistant you would like to connect to. If None or left blank, a new assistant will be created. When connecting to a preexisting assistant, all other parameters will be used to modify the assistant. | OPTIONAL | DEFAULT: None
+            assistant_name (str): The name of the assistant. | OPTIONAL | DEFAULT: "Assistant"
+            instruction_prompt (str): The assistant's context prompt | OPTIONAL | DEFAULT: "You are a simple chat bot."
+            tool_set (list): A list of tool dictionaries. | OPTIONAL | DEFAULT: [ {"type": "file_search"} ]
             model (str): The model to use for the assistant. | OPTIONAL | DEFAULT: "gpt-3.5-turbo-0125"
             model_parameters (dict): The parameters for the model. | OPTIONAL | DEFAULT: {temperature: 1.0, top_p: 1.0}
             max_prompt_tokens (int): The maximum number of prompt tokens. | OPTIONAL | DEFAULT: 10000
             max_completion_tokens (int): The maximum number of completion tokens. | OPTIONAL | DEFAULT: 10000
         """
-
-        # Hande defaults
+        # Handle Defaults
         if assistant_name is None:
             assistant_name = "Assistant"
         if instruction_prompt is None:
@@ -369,30 +388,58 @@ class Assistant:
         self.max_prompt_tokens = max_prompt_tokens
 
         # Create internal vector store
-        self.vector_store = Vector_Storage.Vector_Storage(
+        self.vector_store = Vector_Storage(
             openai_client=self.client,
             name=f"{self.name}_Vector_Store",
             life_time=1
         )
 
-        # Create assistant
-        self.intance = self.client.beta.assistants.create(
-            model=self.model,
-            name=self.name,
-            instructions=self.instructions,
-            tools=self.tool_set,
-            tool_resources={
-                "file_search": {
-                    "vector_store_ids": [
-                        self.vector_store.Get_Attributes()["id"]
-                    ]
-                }
-            },
-            temperature=self.model_parameters["temperature"],
-        )
+        # Connect to a preexisting assistant
+        try:
+            # Set instance
+            self.intance = self.client.beta.assistants.retrieve(assistant_id)
+            self.id = assistant_id # Set id if successfully retrieved
 
-        # Initialize thread
-        self.thread = client.beta.threads.create()
+            # Modify properties
+            self.intance = self.client.beta.assistants.update(
+                assistant_id=self.id,
+                model=self.model,
+                name=self.name,
+                instructions=self.instructions,
+                tools=self.tool_set,
+                tool_resources={
+                    "file_search": {
+                        "vector_store_ids": [
+                            self.vector_store.Get_Attributes()["id"]
+                        ]
+                    }
+                },
+                temperature=self.model_parameters["temperature"],
+                top_p=self.model_parameters["top_p"],
+            )
+        except Exception as e:
+            # Create assistant
+            self.intance = self.client.beta.assistants.create(
+                model=self.model,
+                name=self.name,
+                instructions=self.instructions,
+                tools=self.tool_set,
+                tool_resources={
+                    "file_search": {
+                        "vector_store_ids": [
+                            self.vector_store.Get_Attributes()["id"]
+                        ]
+                    }
+                },
+                temperature=self.model_parameters["temperature"],
+                top_p=self.model_parameters["top_p"],
+            )
+
+            # Set id
+            self.id = self.intance.id
+        finally:
+            # Initialize thread
+            self.thread = client.beta.threads.create()
     # End of Constructor
 
     def __Verify_File_Search_Tool(self, tool_set:list) -> list:
@@ -679,7 +726,7 @@ class Assistant:
         return attributes
     # Function End
 
-    def Get_Vector_Store(self) -> Vector_Storage.Vector_Storage:
+    def Get_Vector_Store(self) -> Vector_Storage:
         """
         Gets the assistant's vector store.
         
