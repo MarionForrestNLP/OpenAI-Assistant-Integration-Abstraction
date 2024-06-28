@@ -1,6 +1,6 @@
 # Import the Assistant Class and relevant libraries
 import Assistant # or you can use: from Assistant import Assistant
-import json, os
+import json
 
 from openai import OpenAI
 from typing_extensions import override
