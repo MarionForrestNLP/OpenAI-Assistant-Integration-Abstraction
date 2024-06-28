@@ -4,10 +4,6 @@
 
 This project was initialized to make the [OpenAI](https://platform.openai.com/docs/api-reference/introduction) API easier to integrate into your own projects. With an emphasis on abstracting the [assistants api](https://platform.openai.com/docs/api-reference/assistants).
 
-## Planned Features and Changes
-
-- Implement code interpreter tool.
-
 ## Table of Contents
 
 - [Assistant Class](#assistant-class)
@@ -16,11 +12,14 @@ This project was initialized to make the [OpenAI](https://platform.openai.com/do
 
 ## Assistant Class
 
-This class is designed to abstract interactions with the OpenAI [Assistant](https://platform.openai.com/docs/assistants/overview/agents). This implementation of the Assistant API does not support the [Code Interpreter](https://platform.openai.com/docs/assistants/tools/code-interpreter/code-interpreter-beta) tool. However, this implementation does have the [File Search](https://platform.openai.com/docs/assistants/tools/file-search/file-search-beta) tool built in and the [Function Calling](https://platform.openai.com/docs/assistants/tools/function-calling/function-calling-beta) tool can be added as an optional feature.
+This class is designed to abstract interactions with the OpenAI [Assistant](https://platform.openai.com/docs/assistants/overview/agents). This implementation of the OpenAI Assistant comes with the [File Search](https://platform.openai.com/docs/assistants/tools/file-search/file-search-beta) tool built in and the [Function Calling](https://platform.openai.com/docs/assistants/tools/function-calling/function-calling-beta) and [Code Interpreter](https://platform.openai.com/docs/assistants/tools/code-interpreter/code-interpreter-beta) tools can be added add the developer's discretion.
+
+*Note*: The code interpreter tool comes at an additional cost, so be sure to check the its [cost](https://platform.openai.com/docs/assistants/tools/code-interpreter/how-it-works) and verify the code interpeter's usage aligns with your implementation and spending goals before adding it to your assistant.
 
 ### Assistant Properties
 
 - **Client**: The OpenAI connection intance used to access the assistant and other APIs.
+- **ID**: The ID of the assistant instance.
 - **Name**: The name of the assistant as is displayed on OpenAI assistants dashboard.
 - **Instructions**: The context prompt used to set up the assistant's initial behavior. Be concise and clear in your instructions to the assistant. This prompt is included in the **prompt tokens** count, thus it is recommended you keep it as short as possible.
 - **Tool Set**: The list of tools used by the assistant. file search, code interpreter, and function calling.
@@ -34,7 +33,7 @@ This class is designed to abstract interactions with the OpenAI [Assistant](http
 
 ### Assistant Constructor
 
-The constructor takes in the OpenAI client, the name of the assistant as a string, the instruction prompt as a string, the tool set as a list, a function dicitonary, the open ai model to implement as a string, and the model parameters as a dictionary. It then creates an assistant object using the OpenAI client and stores it in the instance property. The function dictionary is optional and will default to an empty dicitonary. The model string is optional and will default to `"gpt-3.5-turbo-0125"`. The model parameter dictionary is optional and will default to the following.
+The constructor takes in an OpenAI client, the name of the assistant as a string, the instruction prompt as a string, the tool set as a list, a function dicitonary, the open ai model to implement as a string, and the model parameters as a dictionary. It then creates an assistant object using the OpenAI client and stores it in the instance property. The function dictionary is optional and will default to an empty dicitonary. The model string is optional and will default to `"gpt-3.5-turbo-0125"`. The model parameter dictionary is optional and will default to the following.
 
     model_parameters = {
         "temperature": 1.0,
@@ -42,6 +41,10 @@ The constructor takes in the OpenAI client, the name of the assistant as a strin
     }
 
 The max prompt tokens and max completion tokens parameters are bot integers and will both be set to 10,000 by default. OpenAI recommends using 20,000 tokens.
+
+#### Assistant Retrieval
+
+The constructor also takes an optional `assistant_id` parameter. If an string is provided, the constructor will retrieve a preexisting assistant instance with the provided id from OpenAI and store it in the instance property. When an `assistant_id` is given, the remaining parameters are used to modify the retrieved assistant instance.
 
 ### Assistant Methods
 

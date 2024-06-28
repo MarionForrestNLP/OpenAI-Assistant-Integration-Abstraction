@@ -1,24 +1,28 @@
 # Import the Assistant Class and relevant libraries
-from typing_extensions import override
-import Assistant
-from openai import OpenAI
+import Assistant # or you can use: from Assistant import Assistant
 import json
 
-# This function is used for demostration purposes. You can ignore it.
+from openai import OpenAI
+from typing_extensions import override
+
+# This function will be used for demostration purposes.
 def Get_Current_Temperature(notation:str) -> str:
     return "72 Degrees " + notation
 
 # Create the main function
 def Main():
-    # Create an instance of the OpenAI class
+    # Create an OpenAI client
     client = OpenAI(
-        api_key="Your Key Here",
+        api_key="YOUR_API_KEY_HERE"
     )
 
     print("Creating assistant...") # Create an instance of the Assistant class
     asssistant = Assistant.Assistant(
         # Pass in the OpenAI client || REQUIRED
         client=client,
+
+        # Pass in an ID to retrieve a pre-existing assistant instance || OPTIONAL
+        assistant_id=None,
         
         # Pass in a name for the assistant || REQUIRED
         assistant_name="Example Assistant",
