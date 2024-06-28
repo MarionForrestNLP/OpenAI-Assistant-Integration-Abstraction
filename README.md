@@ -4,10 +4,6 @@
 
 This project was initialized to make the [OpenAI](https://platform.openai.com/docs/api-reference/introduction) API easier to integrate into your own projects. With an emphasis on abstracting the [assistants api](https://platform.openai.com/docs/api-reference/assistants).
 
-## Planned Features and Changes
-
-- Implement code interpreter tool.
-
 ## Table of Contents
 
 - [Assistant Class](#assistant-class)
