@@ -126,10 +126,10 @@ The OpenAI assistant supports user defined [function calling](https://platform.o
 
 Within the [tool_set](#assistant-properties) list, you must define and describe your function. This definition is [passed to the assistant](https://platform.openai.com/docs/assistants/tools/function-calling/step-1-define-functions) for it to identify when certain functions should be called. It is recommended to be as detailed as possible in the `description` fields. Include when the function should be called, what the function returns, how to use the return, and what to do when the assistant doesn't know all the required parameters.
 
-#### Function Tool Example
+#### Tool Set Example
 
-```python
-tool_set = [
+```json
+[
     {
         "type": "function",
         "function": {
@@ -208,4 +208,4 @@ def Handle_Required_Actions(self, data: Assistant.Run, run_id: str) -> None:
     self.Submit_Tool_Outputs(tool_outputs=toolOutputs, run_id=run_id)
 ```
 
-***More documentation coming soon...***
+Your assistant will now be able to call your newly added function. For a live demostration of this functionality run the `Example_Implementation.py` file.
